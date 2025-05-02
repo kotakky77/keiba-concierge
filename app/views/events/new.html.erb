@@ -1,0 +1,165 @@
+<% content_for :title, "競馬幹事コンシェルジュ | 新規イベント作成" %>
+
+<h1>新規競馬イベント作成</h1>
+
+<%= form_with(model: @event, class: "event-form") do |f| %>
+  <% if @event.errors.any? %>
+    <div class="error-message">
+      <h2><%= pluralize(@event.errors.count, "error") %> があります:</h2>
+      <ul>
+        <% @event.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="form-group">
+    <%= f.label :name, 'イベント名' %>
+    <%= f.text_field :name, placeholder: '例: 日本ダービー観戦会', required: true, class: "form-control" %>
+  </div>
+
+  <div class="form-group">
+    <%= f.label :location, '開催場所' %>
+    <%= f.text_field :location, placeholder: '例: 東京競馬場', class: "form-control" %>
+  </div>
+
+  <div class="form-group">
+    <%= f.label :memo, 'メモ・補足情報' %>
+    <%= f.text_area :memo, rows: 4, placeholder: 'イベントについての補足情報があれば記入してください', class: "form-control" %>
+  </div>
+
+  <div class="form-section">
+    <h3>候補日時</h3>
+    <p class="help-text">複数の候補日を設定できます（後から追加も可能）</p>
+    
+    <div id="date-options">
+      <div class="date-option">
+        <input type="datetime-local" name="date_options[]" class="form-control">
+        <button type="button" class="remove-date" style="display:none;">削除</button>
+      </div>
+    </div>
+    
+    <button type="button" id="add-date" class="btn btn-secondary">候補日を追加</button>
+    
+    <div class="form-group mt-3">
+      <%= link_to "レーシングカレンダーを確認", racing_calendar_path, target: "_blank", class: "calendar-link" %>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <%= f.submit '作成する', class: "btn btn-primary" %>
+    <%= link_to 'キャンセル', root_path, class: "btn btn-text" %>
+  </div>
+<% end %>
+
+<style>
+  .event-form {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .form-group {
+    margin-bottom: 20px;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+  }
+  
+  .form-control {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+  }
+  
+  .help-text {
+    color: #6c757d;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  
+  .form-section {
+    margin: 30px 0;
+  }
+  
+  .date-option {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  
+  .remove-date {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .calendar-link {
+    color: #4a6eb5;
+    text-decoration: underline;
+  }
+  
+  .form-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+  }
+  
+  .btn-text {
+    background: none;
+    color: #4a6eb5;
+    text-decoration: underline;
+    padding: 10px 0;
+  }
+  
+  .error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+  }
+  
+  .mt-3 {
+    margin-top: 15px;
+  }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const dateOptions = document.getElementById('date-options');
+  const addDateBtn = document.getElementById('add-date');
+  
+  // 候補日追加ボタンのイベントリスナー
+  addDateBtn.addEventListener('click', function() {
+    const newOption = document.createElement('div');
+    newOption.className = 'date-option';
+    newOption.innerHTML = `
+      <input type="datetime-local" name="date_options[]" class="form-control">
+      <button type="button" class="remove-date">削除</button>
+    `;
+    dateOptions.appendChild(newOption);
+    
+    // 追加した削除ボタンにイベントリスナーを設定
+    const removeBtn = newOption.querySelector('.remove-date');
+    removeBtn.addEventListener('click', function() {
+      dateOptions.removeChild(newOption);
+    });
+  });
+  
+  // フォームの最初の削除ボタンは表示しない（1つ目はデフォルトで必ず表示）
+  const firstRemoveBtn = dateOptions.querySelector('.remove-date');
+  if (firstRemoveBtn) {
+    firstRemoveBtn.style.display = 'none';
+  }
+});
+</script>
