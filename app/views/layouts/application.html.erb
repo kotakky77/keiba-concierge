@@ -48,6 +48,18 @@
         justify-content: space-between;
         align-items: center;
       }
+      .header-title-area {
+        display: flex;
+        align-items: center;
+      }
+      .header-subtitle {
+        font-size: 0.65em;
+        font-weight: normal;
+        margin-left: 10px;
+        opacity: 0.85;
+        display: inline-block;
+        line-height: 1.2;
+      }
       .nav-links {
         display: flex;
         gap: 15px;
@@ -74,7 +86,9 @@
   <body>
     <header class="header">
       <div class="container header-inner">
-        <h1><%= link_to "競馬幹事コンシェルジュ", root_path %></h1>
+        <div class="header-title-area">
+          <h1><%= link_to "競馬幹事コンシェルジュ", root_path %> <span class="header-subtitle">競馬観戦の幹事業務を円滑に<br>日程調整、費用精算まで</span></h1>
+        </div>
         <nav class="nav-links">
           <%= link_to "ホーム", root_path %>
           <%= link_to "新規イベント作成", new_event_path %>
