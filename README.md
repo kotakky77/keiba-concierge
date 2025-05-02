@@ -1,41 +1,24 @@
-# keiba-concierge
-競馬場の開催幹事を一貫してサポートするアプリ
+# README
 
-## 目的
-  - 仲間と楽しく競馬場に行きたい
-  - 幹事が競馬イベントの準備から精算までを一貫して行える
+This README would normally document whatever steps are necessary to get the
+application up and running.
 
+Things you may want to cover:
 
-## セットアップ
+* Ruby version
 
-1. ソースコードをcloneして、リポジトリの配下に移動
+* System dependencies
 
-    ```shell
-    git clone git@github.com:kotakky77/keiba-concierge.git
-    cd keiba-concierge.git
-    ````
+* Configuration
 
-1. dockerイメージをビルド
+* Database creation
 
-    初回のビルドは数分かかる
+* Database initialization
 
-    ```shell
-    docker compose build
-    ```
+* How to run the test suite
 
-1. DBをセットアップ
+* Services (job queues, cache servers, search engines, etc.)
 
-    初回の実行はdockerイメージのダウンロードが必要なため、数分かかる
+* Deployment instructions
 
-    ```shell
-    
-    ```
-
-2. 下記コマンドを実行し、dockerを起動する
-
-    ```shell
-    docker compose up -d
-    ```
-
-3. 起動後の動作確認
-    - ブラウザで http://localhost:3000 にアクセスしてログイン画面が表示されることを確認
+* ...

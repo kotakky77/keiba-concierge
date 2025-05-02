@@ -6,7 +6,7 @@
 - フロントエンド：Hotwire(Turbo + Stimulus)
 - バックエンド：Ruby 3.4.2
 - バックエンドフレームワーク：Ruby on Rails 8.0.2
-- データベース：SQLite
+- データベース：postgres
 - ホスティング：AWS
 - アクセス解析：google analytics
 
