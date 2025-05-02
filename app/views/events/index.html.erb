@@ -1,23 +1,17 @@
 <% content_for :title, "競馬幹事コンシェルジュ | ホーム" %>
 
-<h1>競馬イベント作成</h1>
+<h1>新規イベント作成</h1>
 
 <div class="top-container">
   <div class="calendar-container">
     <div class="intro-section">
-      <p>
-        競馬幹事コンシェルジュは、競馬観戦イベントの幹事業務を円滑にするアプリケーションです。
-        日程調整、持ち物管理、費用精算まで、簡単に管理できます。
-      </p>
-      
       <p>
         <strong>イベントを作成するには、まずカレンダーから候補日を選択してください。</strong><br>
         競馬場と重賞情報を参考に、開催日を選んでイベントを計画しましょう。
       </p>
     </div>
 
-    <h2>JRAレーシングカレンダー</h2>
-    <p class="selection-guide">開催日を選択してください（複数選択可能）</p>
+    <h2>候補日を選択してください（複数選択可能）</h2>
     
     <div class="calendar-controls">
       <div class="year-selector">
@@ -232,7 +226,6 @@
         </div>
         
         <div class="calendar-legend">
-          <h4>レジェンド</h4>
           <div class="legend-items">
             <% venue_colors = {
               "東京" => "#e73562",
@@ -279,25 +272,6 @@
       <button id="create-event-btn" class="btn btn-primary" disabled>新規イベントを作成</button>
       <p id="no-dates-message">※少なくとも1つの候補日を選択してください</p>
     </div>
-    
-    <% if @events.present? %>
-      <div class="recent-events">
-        <h3>最近作成されたイベント</h3>
-        <ul>
-          <% @events.take(5).each do |event| %>
-            <li>
-              <%= link_to event.name, event_path(event) %>
-              <% if event.confirmed_date.present? %>
-                <span class="event-date"><%= event.confirmed_date.strftime("%Y/%m/%d") %></span>
-              <% end %>
-            </li>
-          <% end %>
-        </ul>
-        <div class="more-events">
-          <%= link_to "全てのイベントを見る", events_path(show_all: true), class: "link-text" %>
-        </div>
-      </div>
-    <% end %>
   </div>
 </div>
 
