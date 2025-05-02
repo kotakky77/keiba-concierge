@@ -86,8 +86,8 @@
     <h3>候補日の追加</h3>
     <%= form_with(model: @new_date_option, url: event_date_options_path(@event), local: true) do |f| %>
       <div class="form-group">
-        <%= f.label :date, '候補日時' %>
-        <%= f.datetime_local_field :date, required: true, class: 'form-control' %>
+        <%= f.label :date, '候補日' %>
+        <%= f.date_field :date, required: true, class: 'form-control' %>
       </div>
       <%= f.submit '候補日を追加', class: 'btn btn-primary' %>
     <% end %>
@@ -111,7 +111,7 @@
         <tbody>
           <% @date_options.each do |date_option| %>
             <tr>
-              <td class="date-cell"><%= date_option.date.strftime("%Y/%m/%d %H:%M") %></td>
+              <td class="date-cell"><%= date_option.date.strftime("%Y/%m/%d") %></td>
               
               <% @participants.each do |participant| %>
                 <% attendance = Attendance.find_by(participant: participant, date_option: date_option) %>
@@ -167,7 +167,7 @@
           
           <% @date_options.each do |date_option| %>
             <div class="date-response-item">
-              <p class="date-label"><%= date_option.date.strftime("%Y/%m/%d %H:%M") %></p>
+              <p class="date-label"><%= date_option.date.strftime("%Y/%m/%d") %></p>
               
               <div class="response-options">
                 <%= f.radio_button "date_option_ids[#{date_option.id}]", 'yes', id: "yes_#{date_option.id}", required: true %>
