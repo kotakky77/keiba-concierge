@@ -1,0 +1,128 @@
+<% content_for :title, "競馬幹事コンシェルジュ | イベント一覧" %>
+
+<h1>競馬イベント一覧</h1>
+
+<div class="action-buttons">
+  <%= link_to "ホームに戻る", root_path, class: "btn btn-secondary" %>
+  <%= link_to "新規イベント作成", new_event_path, class: "btn btn-primary" %>
+</div>
+
+<% if @events.present? %>
+  <div class="events-list">
+    <% @events.each do |event| %>
+      <div class="event-card">
+        <h3><%= event.name %></h3>
+        
+        <div class="event-details">
+          <p>
+            <strong>開催場所:</strong> <%= event.location.presence || "未設定" %>
+          </p>
+          <p>
+            <strong>日付:</strong>
+            <% if event.confirmed_date.present? %>
+              <%= event.confirmed_date.strftime("%Y年%m月%d日 %H:%M") %>
+            <% else %>
+              調整中
+            <% end %>
+          </p>
+          <% if event.memo.present? %>
+            <p class="event-memo">
+              <strong>メモ:</strong> <%= simple_format(event.memo) %>
+            </p>
+          <% end %>
+          
+          <% if event.date_options.any? %>
+            <p>
+              <strong>候補日:</strong>
+              <span class="date-options">
+                <%= event.date_options.order(:date).map { |option| option.date.strftime("%Y/%m/%d") }.join(", ") %>
+              </span>
+            </p>
+          <% end %>
+        </div>
+        
+        <div class="event-links">
+          <%= link_to "詳細を見る", event_path(event), class: "btn btn-sm btn-primary" %>
+          <%= link_to "共有用URL", event_by_hash_path(event.url_hash), class: "btn btn-sm btn-secondary" %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% else %>
+  <div class="no-events">
+    <p>まだイベントが作成されていません。新規イベントを作成してみましょう！</p>
+  </div>
+<% end %>
+
+<style>
+  .action-buttons {
+    margin: 20px 0;
+    display: flex;
+    gap: 10px;
+  }
+  
+  .btn {
+    display: inline-block;
+    padding: 10px 15px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  
+  .btn-sm {
+    padding: 5px 10px;
+    font-size: 14px;
+  }
+  
+  .btn-primary {
+    background-color: #4a6eb5;
+    color: white;
+  }
+  
+  .btn-secondary {
+    background-color: #6c757d;
+    color: white;
+  }
+  
+  .events-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+  }
+  
+  .event-card {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .event-details {
+    margin: 10px 0;
+  }
+  
+  .event-memo {
+    margin-top: 10px;
+    font-size: 14px;
+    color: #666;
+  }
+  
+  .date-options {
+    font-size: 14px;
+    color: #666;
+  }
+  
+  .event-links {
+    margin-top: 15px;
+    display: flex;
+    gap: 15px;
+  }
+  
+  .no-events {
+    text-align: center;
+    padding: 30px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+  }
+</style>

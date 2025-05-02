@@ -1,68 +1,715 @@
 <% content_for :title, "競馬幹事コンシェルジュ | ホーム" %>
 
-<h1>競馬イベント一覧</h1>
+<h1>競馬イベント作成</h1>
 
-<div class="intro-section">
-  <p>
-    競馬幹事コンシェルジュは、競馬観戦イベントの幹事業務を円滑にするアプリケーションです。
-    日程調整、持ち物管理、費用精算まで、簡単に管理できます。
-  </p>
-  
-  <div class="action-buttons">
-    <%= link_to "新規イベントを作成", new_event_path, class: "btn btn-primary" %>
-    <%= link_to "JRAレーシングカレンダーを確認", racing_calendar_path, class: "btn btn-secondary" %>
-  </div>
-</div>
+<div class="top-container">
+  <div class="calendar-container">
+    <div class="intro-section">
+      <p>
+        競馬幹事コンシェルジュは、競馬観戦イベントの幹事業務を円滑にするアプリケーションです。
+        日程調整、持ち物管理、費用精算まで、簡単に管理できます。
+      </p>
+      
+      <p>
+        <strong>イベントを作成するには、まずカレンダーから候補日を選択してください。</strong><br>
+        競馬場と重賞情報を参考に、開催日を選んでイベントを計画しましょう。
+      </p>
+    </div>
 
-<% if @events.present? %>
-  <h2>最近作成されたイベント</h2>
-  
-  <div class="events-list">
-    <% @events.each do |event| %>
-      <div class="event-card">
-        <h3><%= event.name %></h3>
+    <h2>JRAレーシングカレンダー</h2>
+    <p class="selection-guide">開催日を選択してください（複数選択可能）</p>
+    
+    <div class="calendar-controls">
+      <div class="year-selector">
+        <strong>年を選択:</strong>
+        <% (Date.today.year..Date.today.year + 1).each do |year| %>
+          <%= link_to year.to_s, root_path(year: year, month: @month || Date.today.month), class: "year-link #{year.to_s == @year.to_s ? 'active' : ''}" %>
+        <% end %>
+      </div>
+      
+      <div class="month-selector">
+        <strong>月を選択:</strong>
+        <% (1..12).each do |month| %>
+          <%= link_to month.to_s + "月", root_path(year: @year || Date.today.year, month: month), class: "month-link #{month.to_s == @month.to_s ? 'active' : ''}" %>
+        <% end %>
+      </div>
+    </div>
+
+    <% if @calendar_data.present? %>
+      <div class="calendar-view">
+        <h3><%= @year %>年<%= @month %>月 開催予定</h3>
         
-        <div class="event-details">
-          <p>
-            <strong>開催場所:</strong> <%= event.location.presence || "未設定" %>
-          </p>
-          <p>
-            <strong>日付:</strong>
-            <% if event.confirmed_date.present? %>
-              <%= event.confirmed_date.strftime("%Y年%m月%d日 %H:%M") %>
-            <% else %>
-              調整中
+        <% 
+          # 月のイベントをフィルタリング
+          month_events = @calendar_data.select { |event| event[:start_date].month == @month.to_i && event[:start_date].year == @year.to_i }
+          
+          # 日付ごとにイベントをグループ化
+          events_by_date = {}
+          month_events.each do |event|
+            date = event[:start_date]
+            events_by_date[date] ||= []
+            events_by_date[date] << event
+          end
+          
+          # 月の最初の日の曜日と日数を取得
+          first_day = Date.new(@year.to_i, @month.to_i, 1)
+          last_day = Date.new(@year.to_i, @month.to_i, -1)
+          start_wday = first_day.wday
+          days_in_month = last_day.day
+          
+          # カレンダーの週数を計算（最初の日の曜日 + 月の日数 + 6）/ 7
+          weeks = (start_wday + days_in_month + 6) / 7
+        %>
+        
+        <div class="jra-calendar">
+          <div class="jra-calendar-header">
+            <% %w(日 月 火 水 木 金 土).each do |wday| %>
+              <div class="calendar-header-cell <%= wday == '日' ? 'sunday' : (wday == '土' ? 'saturday' : '') %>">
+                <%= wday %>
+              </div>
             <% end %>
-          </p>
+          </div>
+          
+          <div class="jra-calendar-body">
+            <% 
+              day_counter = 0
+              week_counter = 0
+              
+              while week_counter < weeks do 
+            %>
+              <div class="calendar-week">
+                <% 7.times do |i| %>
+                  <% 
+                    # 月の最初の週で、月の開始日より前の日は空セル
+                    if week_counter == 0 && i < start_wday
+                  %>
+                    <div class="calendar-day empty"></div>
+                  <% 
+                    # 月の最後の週で、月の最終日を過ぎた日も空セル
+                    elsif day_counter >= days_in_month 
+                  %>
+                    <div class="calendar-day empty"></div>
+                  <% else %>
+                    <% 
+                      day_counter += 1
+                      current_date = Date.new(@year.to_i, @month.to_i, day_counter)
+                      current_events = events_by_date[current_date] || []
+                      has_events = current_events.any?
+                      
+                      # 主要競馬場のカラーコード
+                      venue_colors = {
+                        "東京" => "#e73562",
+                        "中山" => "#009250",
+                        "阪神" => "#004098",
+                        "京都" => "#9b26b6",
+                        "小倉" => "#e95513",
+                        "福島" => "#2ca9e1",
+                        "新潟" => "#e4007f",
+                        "札幌" => "#ffdc00",
+                        "函館" => "#77ae1f"
+                      }
+                      
+                      # この日のイベントから競馬場を抽出
+                      venues = []
+                      stakes_races = []
+                      
+                      current_events.each do |event|
+                        # イベント名から競馬場を特定
+                        venue_name = nil
+                        venue_colors.each do |venue, _|
+                          if event[:summary].include?(venue) || (event[:location].present? && event[:location].include?(venue))
+                            venue_name = venue
+                            break
+                          end
+                        end
+                        
+                        venues << venue_name if venue_name
+                        
+                        # 重賞レースを特定（G1、G2、G3などを含む場合）
+                        if event[:summary].match(/\(G[123]\)/) || event[:summary].include?("重賞")
+                          stakes_races << event[:summary]
+                        end
+                      end
+                      
+                      venues.uniq!
+                      is_weekend = (i == 0 || i == 6) # 土日判定
+                    %>
+                    
+                    <div class="calendar-day <%= is_weekend ? (i == 0 ? 'sunday' : 'saturday') : '' %> <%= has_events ? 'has-events' : '' %>">
+                      <label class="day-label <%= has_events ? 'selectable' : '' %>">
+                        <% if has_events %>
+                          <input type="checkbox" class="date-checkbox" 
+                                 data-date="<%= current_date.strftime('%Y-%m-%d') %>" 
+                                 data-events="<%= current_events.map { |e| e[:summary] }.join(', ') %>">
+                        <% end %>
+                        <span class="day-number <%= has_events ? 'has-events' : '' %>"><%= day_counter %></span>
+                      </label>
+                      
+                      <% if has_events %>
+                        <div class="race-venue-info">
+                          <% venues.each do |venue| %>
+                            <% if venue && venue_colors[venue] %>
+                              <% 
+                                # その日付と特定の競馬場に関連するイベントをフィルタリング
+                                # ここが重要：実際のレース情報（jrarace）があるものだけをフィルタリング
+                                venue_race_events = current_events.select do |event| 
+                                  # 'race'ソースからのデータのみを対象とし、かつ競馬場名が含まれているものを選択
+                                  event[:source_type] == 'race' && (
+                                    (event[:summary].present? && event[:summary].include?(venue)) ||
+                                    (event[:location].present? && event[:location].include?(venue))
+                                  )
+                                end
+                                
+                                # レース情報が実際にある場合のみポップアップを表示
+                                has_venue_events = venue_race_events.any?
+                                venue_class = has_venue_events ? "venue-tag has-popup" : "venue-tag no-popup"
+                              %>
+                              <span class="<%= venue_class %>" style="background-color: <%= venue_colors[venue] %>; <%= has_venue_events ? 'cursor: pointer;' : 'cursor: default;' %>">
+                                <%= venue %>
+                                <% if has_venue_events %>
+                                  <div class="venue-popup">
+                                    <div class="popup-title"><%= venue %>競馬場 - <%= current_date.strftime('%Y年%m月%d日') %></div>
+                                    <% venue_race_events.each do |event| %>
+                                      <div class="popup-race">
+                                        <% if event[:summary].match(/\(G[123]\)/) %>
+                                          <span class="popup-race-grade"><%= event[:summary].match(/\(G[123]\)/)[0] %></span>
+                                        <% end %>
+                                        <%= event[:summary] %>
+                                        <% if event[:description].present? && event[:description].strip.length > 0 %>
+                                          <div class="popup-race-details"><%= event[:description] %></div>
+                                        <% end %>
+                                      </div>
+                                    <% end %>
+                                  </div>
+                                <% end %>
+                              </span>
+                            <% end %>
+                          <% end %>
+                          
+                          <% if stakes_races.any? %>
+                            <div class="stakes-races">
+                              <% stakes_races.take(2).each do |race| %>
+                                <% 
+                                  # そのレース名のイベントを検索
+                                  race_event = current_events.find { |event| event[:summary] == race }
+                                  has_race_info = race_event.present?
+                                  race_class = has_race_info ? "stakes-race-name has-popup" : "stakes-race-name no-popup"
+                                %>
+                                <div class="<%= race_class %>">
+                                  <%= race %>
+                                  <% if has_race_info %>
+                                    <div class="venue-popup">
+                                      <div class="popup-title">
+                                        <% if race.match(/\(G[123]\)/) %>
+                                          <span class="popup-race-grade"><%= race.match(/\(G[123]\)/)[0] %></span>
+                                        <% end %>
+                                        <%= race %>
+                                      </div>
+                                      <% if race_event[:location].present? %>
+                                        <div><%= race_event[:location] %></div>
+                                      <% end %>
+                                      <% if race_event[:description].present? %>
+                                        <div class="popup-race-details"><%= race_event[:description] %></div>
+                                      <% end %>
+                                    </div>
+                                  <% end %>
+                                </div>
+                              <% end %>
+                              <% if stakes_races.size > 2 %>
+                                <div class="stakes-race-more">他<%= stakes_races.size - 2 %>レース</div>
+                              <% end %>
+                            </div>
+                          <% end %>
+                        </div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                <% end %>
+              </div>
+              <% week_counter += 1 %>
+            <% end %>
+          </div>
         </div>
         
-        <div class="event-links">
-          <%= link_to "詳細を見る", event_path(event) %>
-          <%= link_to "共有用URL", event_by_hash_path(event.url_hash) %>
+        <div class="calendar-legend">
+          <h4>レジェンド</h4>
+          <div class="legend-items">
+            <% venue_colors = {
+              "東京" => "#e73562",
+              "中山" => "#009250",
+              "阪神" => "#004098",
+              "京都" => "#9b26b6",
+              "小倉" => "#e95513",
+              "福島" => "#2ca9e1",
+              "新潟" => "#e4007f",
+              "札幌" => "#ffdc00",
+              "函館" => "#77ae1f"
+            } %>
+            
+            <% venue_colors.each do |venue, color| %>
+              <div class="legend-item">
+                <span class="legend-color" style="background-color: <%= color %>;"></span>
+                <span class="legend-name"><%= venue %>競馬場</span>
+              </div>
+            <% end %>
+          </div>
+        </div>
+        
+        <!-- 開催詳細情報表示エリア -->
+        <div id="event-details-area" class="event-details-area">
+          <h4>選択日の開催情報</h4>
+          <div id="event-details-content">
+            <p class="select-prompt">カレンダーから日付を選択すると、詳細情報が表示されます</p>
+          </div>
+        </div>
+        
+      </div>
+    <% else %>
+      <div class="error-message">
+        <p>レーシングカレンダーの取得に失敗しました。しばらく経ってから再度お試しください。</p>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="selected-dates-container">
+    <h2>選択した候補日</h2>
+    <div id="selected-dates-list"></div>
+    
+    <div class="action-button-container">
+      <button id="create-event-btn" class="btn btn-primary" disabled>新規イベントを作成</button>
+      <p id="no-dates-message">※少なくとも1つの候補日を選択してください</p>
+    </div>
+    
+    <% if @events.present? %>
+      <div class="recent-events">
+        <h3>最近作成されたイベント</h3>
+        <ul>
+          <% @events.take(5).each do |event| %>
+            <li>
+              <%= link_to event.name, event_path(event) %>
+              <% if event.confirmed_date.present? %>
+                <span class="event-date"><%= event.confirmed_date.strftime("%Y/%m/%d") %></span>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+        <div class="more-events">
+          <%= link_to "全てのイベントを見る", events_path(show_all: true), class: "link-text" %>
         </div>
       </div>
     <% end %>
   </div>
-<% else %>
-  <div class="no-events">
-    <p>まだイベントが作成されていません。新規イベントを作成してみましょう！</p>
-  </div>
-<% end %>
+</div>
 
 <style>
+  .top-container {
+    display: flex;
+    gap: 20px;
+  }
+  
+  .calendar-container {
+    flex: 3;
+  }
+  
+  .selected-dates-container {
+    flex: 1;
+    min-width: 250px;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    position: sticky;
+    top: 20px;
+    align-self: flex-start;
+  }
+
+  .selection-guide {
+    color: #666;
+    margin-bottom: 15px;
+    font-style: italic;
+  }
+  
   .intro-section {
     background-color: #f8f9fa;
     padding: 20px;
     border-radius: 5px;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
+  }
+
+  .calendar-controls {
+    margin-bottom: 20px;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
   }
   
-  .action-buttons {
-    margin-top: 20px;
+  .year-selector, .month-selector {
+    margin-bottom: 10px;
+  }
+  
+  .year-link, .month-link {
+    display: inline-block;
+    margin: 0 5px 5px 0;
+    padding: 5px 10px;
+    border-radius: 3px;
+    text-decoration: none;
+    background-color: #e9ecef;
+    color: #495057;
+  }
+  
+  .year-link.active, .month-link.active {
+    background-color: #4a6eb5;
+    color: white;
+    font-weight: bold;
+  }
+  
+  /* JRA風カレンダースタイル */
+  .jra-calendar {
+    width: 100%;
+    border: 1px solid #ddd;
+    margin-bottom: 20px;
+    background: #fff;
+  }
+  
+  .jra-calendar-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background-color: #f4f4f4;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .calendar-header-cell {
+    text-align: center;
+    padding: 8px 0;
+    font-weight: bold;
+  }
+  
+  .calendar-header-cell.sunday {
+    color: #e73562;
+  }
+  
+  .calendar-header-cell.saturday {
+    color: #004098;
+  }
+  
+  .jra-calendar-body {
     display: flex;
+    flex-direction: column;
+  }
+  
+  .calendar-week {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border-bottom: 1px solid #e9ecef;
+  }
+  
+  .calendar-week:last-child {
+    border-bottom: none;
+  }
+  
+  .calendar-day {
+    border-right: 1px solid #e9ecef;
+    min-height: 100px;
+    padding: 5px;
+    position: relative;
+  }
+  
+  .calendar-day:last-child {
+    border-right: none;
+  }
+  
+  .calendar-day.empty {
+    background-color: #f9f9f9;
+  }
+  
+  .calendar-day.sunday {
+    background-color: #ffebee;
+  }
+  
+  .calendar-day.saturday {
+    background-color: #e3f2fd;
+  }
+  
+  .calendar-day.has-events {
+    cursor: pointer;
+  }
+  
+  .day-label {
+    display: flex;
+    align-items: center;
+    position: relative;
+    width: 100%;
+    cursor: default;
+  }
+  
+  .day-label.selectable {
+    cursor: pointer;
+  }
+  
+  .day-number {
+    font-size: 16px;
+    margin-right: 5px;
+    font-weight: bold;
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    text-align: center;
+    border-radius: 50%;
+  }
+  
+  .day-number.has-events {
+    background-color: #4a6eb5;
+    color: white;
+  }
+  
+  .date-checkbox {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+  }
+  
+  .race-venue-info {
+    margin-top: 5px;
+  }
+  
+  .venue-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-right: 3px;
+    margin-bottom: 3px;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    position: relative; /* ポップアップの基準位置 */
+  }
+  
+  .venue-tag.has-popup {
+    cursor: pointer;
+  }
+  
+  .venue-popup {
+    display: none;
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: white;
+    border: 1px solid #ddd;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    border-radius: 5px;
+    padding: 10px;
+    width: 220px;
+    z-index: 100;
+    text-align: left;
+    color: #333;
+    font-weight: normal;
+  }
+  
+  .venue-popup::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 0 6px 6px 6px;
+    border-style: solid;
+    border-color: transparent transparent white transparent;
+  }
+  
+  .venue-tag.has-popup:hover .venue-popup {
+    display: block;
+  }
+  
+  /* 重賞レース表示の改善 */
+  .stakes-race-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 1px;
+  }
+  
+  .stakes-race-name.has-popup {
+    cursor: pointer;
+  }
+  
+  .stakes-race-name .venue-popup {
+    width: 180px;
+  }
+  
+  .stakes-race-name.has-popup:hover .venue-popup {
+    display: block;
+  }
+  
+  .stakes-races {
+    margin-top: 3px;
+    font-size: 11px;
+    line-height: 1.3;
+  }
+  
+  .stakes-race-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 1px;
+  }
+  
+  .stakes-race-more {
+    color: #666;
+    font-style: italic;
+    font-size: 10px;
+  }
+  
+  .calendar-legend {
+    margin-top: 20px;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+  }
+  
+  .calendar-legend h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+  }
+  
+  .legend-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 10px;
   }
   
+  .legend-item {
+    display: flex;
+    align-items: center;
+  }
+  
+  .legend-color {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 5px;
+    border-radius: 3px;
+  }
+  
+  .event-details-area {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+  }
+  
+  .select-prompt {
+    color: #666;
+    font-style: italic;
+    text-align: center;
+    padding: 20px 0;
+  }
+  
+  .event-detail-item {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px dotted #ddd;
+  }
+  
+  .event-detail-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+  
+  .event-detail-title {
+    font-weight: bold;
+    color: #4a6eb5;
+    margin-bottom: 5px;
+  }
+  
+  .event-detail-location {
+    font-style: italic;
+    color: #666;
+    margin-bottom: 5px;
+    font-size: 14px;
+  }
+  
+  .event-detail-description {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  
+  /* 選択された候補日のスタイル */
+  #selected-dates-list {
+    margin-bottom: 20px;
+    min-height: 40px;
+  }
+  
+  .selected-date-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #e9ecef;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  
+  .selected-date-item .remove-date {
+    color: #dc3545;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  
+  .action-button-container {
+    text-align: center;
+    margin: 20px 0;
+  }
+  
+  #no-dates-message {
+    color: #dc3545;
+    font-size: 12px;
+    margin-top: 5px;
+  }
+  
+  .recent-events {
+    margin-top: 30px;
+    border-top: 1px solid #dee2e6;
+    padding-top: 15px;
+  }
+  
+  .recent-events h3 {
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+  
+  .recent-events ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .recent-events li {
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px dotted #dee2e6;
+  }
+  
+  .event-date {
+    font-size: 12px;
+    color: #6c757d;
+    margin-left: 8px;
+  }
+  
+  .more-events {
+    margin-top: 10px;
+    text-align: right;
+  }
+  
+  .link-text {
+    color: #4a6eb5;
+    text-decoration: none;
+  }
+
   .btn {
     display: inline-block;
     padding: 10px 15px;
@@ -70,6 +717,7 @@
     text-decoration: none;
     font-weight: bold;
     cursor: pointer;
+    border: none;
   }
   
   .btn-primary {
@@ -77,38 +725,197 @@
     color: white;
   }
   
-  .btn-secondary {
-    background-color: #6c757d;
-    color: white;
+  .btn-primary:disabled {
+    background-color: #a9b9d6;
+    cursor: not-allowed;
   }
   
-  .events-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
-  }
-  
-  .event-card {
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    padding: 15px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  }
-  
-  .event-details {
-    margin: 10px 0;
-  }
-  
-  .event-links {
-    margin-top: 15px;
-    display: flex;
-    gap: 15px;
-  }
-  
-  .no-events {
-    text-align: center;
-    padding: 30px;
+  .no-events-message, .error-message {
     background-color: #f8f9fa;
+    padding: 30px;
     border-radius: 5px;
+    text-align: center;
+    color: #6c757d;
+  }
+  
+  .error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+
+  @media (max-width: 768px) {
+    .top-container {
+      flex-direction: column;
+    }
+    
+    .selected-dates-container {
+      position: static;
+    }
+    
+    .legend-items {
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    }
   }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const selectedDates = new Map();
+  const createEventBtn = document.getElementById('create-event-btn');
+  const noDatesMsgEl = document.getElementById('no-dates-message');
+  const selectedDatesListEl = document.getElementById('selected-dates-list');
+  const eventDetailsContentEl = document.getElementById('event-details-content');
+  
+  // カレンダー上の日付セルのクリックイベント処理
+  document.querySelectorAll('.calendar-day.has-events').forEach(dayCell => {
+    dayCell.addEventListener('click', function(e) {
+      // チェックボックス自体のクリックはここでは処理しない（イベントバブリングで処理される）
+      if (e.target.classList.contains('date-checkbox')) return;
+      
+      // ポップアップ内のクリックイベントは伝播させない
+      if (e.target.closest('.venue-popup')) return;
+      
+      // この日付セル内のチェックボックスを取得
+      const checkbox = this.querySelector('.date-checkbox');
+      if (checkbox) {
+        // チェックボックスの状態をトグル
+        checkbox.checked = !checkbox.checked;
+        
+        // チェックボックスの変更イベントを手動で発火
+        const changeEvent = new Event('change');
+        checkbox.dispatchEvent(changeEvent);
+        
+        // イベント詳細表示
+        const dateStr = checkbox.dataset.date;
+        const date = new Date(dateStr);
+        showEventDetails(date);
+      }
+    });
+  });
+  
+  // チェックボックスのイベントリスナー（通常のチェックボックスクリック時）
+  document.querySelectorAll('.date-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+      const dateStr = this.dataset.date;
+      const eventsStr = this.dataset.events;
+      
+      if (this.checked) {
+        // 選択された日付を追加
+        selectedDates.set(dateStr, eventsStr);
+      } else {
+        // 選択解除された日付を削除
+        selectedDates.delete(dateStr);
+      }
+      
+      updateSelectedDatesList();
+      updateCreateButtonState();
+    });
+  });
+  
+  // 新規イベント作成ボタンのイベントリスナー
+  createEventBtn.addEventListener('click', function() {
+    if (selectedDates.size > 0) {
+      const selectedDatesArray = Array.from(selectedDates.keys());
+      // クエリパラメータとして選択された日付を渡す
+      window.location.href = '<%= new_event_path %>?date_options=' + encodeURIComponent(JSON.stringify(selectedDatesArray));
+    }
+  });
+  
+  // 選択された候補日リストの更新
+  function updateSelectedDatesList() {
+    selectedDatesListEl.innerHTML = '';
+    
+    if (selectedDates.size === 0) {
+      selectedDatesListEl.innerHTML = '<p>選択された候補日はありません</p>';
+      return;
+    }
+    
+    selectedDates.forEach((eventsStr, dateStr) => {
+      const dateObj = new Date(dateStr);
+      const formattedDate = `${dateObj.getFullYear()}年${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
+      const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][dateObj.getDay()];
+      
+      const dateItemEl = document.createElement('div');
+      dateItemEl.className = 'selected-date-item';
+      
+      const dateTextEl = document.createElement('div');
+      dateTextEl.textContent = `${formattedDate}(${dayOfWeek})`;
+      
+      const removeBtnEl = document.createElement('span');
+      removeBtnEl.className = 'remove-date';
+      removeBtnEl.textContent = '×';
+      removeBtnEl.addEventListener('click', () => {
+        // チェックボックスの状態も同期して更新
+        const checkbox = document.querySelector(`.date-checkbox[data-date="${dateStr}"]`);
+        if (checkbox) checkbox.checked = false;
+        
+        // 選択リストから削除
+        selectedDates.delete(dateStr);
+        updateSelectedDatesList();
+        updateCreateButtonState();
+      });
+      
+      dateItemEl.appendChild(dateTextEl);
+      dateItemEl.appendChild(removeBtnEl);
+      selectedDatesListEl.appendChild(dateItemEl);
+    });
+  }
+  
+  // 新規イベント作成ボタンの状態更新
+  function updateCreateButtonState() {
+    if (selectedDates.size > 0) {
+      createEventBtn.disabled = false;
+      noDatesMsgEl.style.display = 'none';
+    } else {
+      createEventBtn.disabled = true;
+      noDatesMsgEl.style.display = 'block';
+    }
+  }
+  
+  // 日付のイベント詳細を表示
+  function showEventDetails(date) {
+    // URLのクエリパラメータを維持しつつ、日付を追加
+    const allEvents = <%= raw @calendar_data.to_json %>;
+    const dateStr = date.toISOString().split('T')[0];
+    
+    // その日のイベントをフィルタリング
+    const dayEvents = allEvents.filter(event => {
+      const eventDate = new Date(event.start_date);
+      return eventDate.toISOString().split('T')[0] === dateStr;
+    });
+    
+    if (dayEvents.length === 0) {
+      eventDetailsContentEl.innerHTML = '<p class="select-prompt">選択した日付のイベント情報がありません</p>';
+      return;
+    }
+    
+    // フォーマットされた日付
+    const formattedDate = `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+    const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
+    
+    let html = `<h4>${formattedDate}（${dayOfWeek}）の開催情報</h4>`;
+    
+    // race_eventsのみフィルタリング（source_type = 'race'のもの）
+    const raceEvents = dayEvents.filter(event => event.source_type === 'race');
+    
+    if (raceEvents.length === 0) {
+      html += '<p>この日のレース情報はありません</p>';
+    } else {
+      raceEvents.forEach(event => {
+        html += `
+          <div class="event-detail-item">
+            <div class="event-detail-title">${event.summary}</div>
+            ${event.location ? `<div class="event-detail-location">${event.location}</div>` : ''}
+            ${event.description ? `<div class="event-detail-description">${event.description}</div>` : ''}
+          </div>
+        `;
+      });
+    }
+    
+    eventDetailsContentEl.innerHTML = html;
+  }
+  
+  // 初期表示
+  updateSelectedDatesList();
+});
+</script>
