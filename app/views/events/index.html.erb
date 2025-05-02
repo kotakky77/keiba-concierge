@@ -272,25 +272,6 @@
       <button id="create-event-btn" class="btn btn-primary" disabled>新規イベントを作成</button>
       <p id="no-dates-message">※少なくとも1つの候補日を選択してください</p>
     </div>
-    
-    <% if @events.present? %>
-      <div class="recent-events">
-        <h3>最近作成されたイベント</h3>
-        <ul>
-          <% @events.take(5).each do |event| %>
-            <li>
-              <%= link_to event.name, event_path(event) %>
-              <% if event.confirmed_date.present? %>
-                <span class="event-date"><%= event.confirmed_date.strftime("%Y/%m/%d") %></span>
-              <% end %>
-            </li>
-          <% end %>
-        </ul>
-        <div class="more-events">
-          <%= link_to "全てのイベントを見る", events_path(show_all: true), class: "link-text" %>
-        </div>
-      </div>
-    <% end %>
   </div>
 </div>
 
