@@ -1,23 +1,17 @@
 <% content_for :title, "競馬幹事コンシェルジュ | ホーム" %>
 
-<h1>競馬イベント作成</h1>
+<h1>新規イベント作成</h1>
 
 <div class="top-container">
   <div class="calendar-container">
     <div class="intro-section">
-      <p>
-        競馬幹事コンシェルジュは、競馬観戦イベントの幹事業務を円滑にするアプリケーションです。
-        日程調整、持ち物管理、費用精算まで、簡単に管理できます。
-      </p>
-      
       <p>
         <strong>イベントを作成するには、まずカレンダーから候補日を選択してください。</strong><br>
         競馬場と重賞情報を参考に、開催日を選んでイベントを計画しましょう。
       </p>
     </div>
 
-    <h2>JRAレーシングカレンダー</h2>
-    <p class="selection-guide">開催日を選択してください（複数選択可能）</p>
+    <h2>候補日を選択してください（複数選択可能）</h2>
     
     <div class="calendar-controls">
       <div class="year-selector">
@@ -232,7 +226,6 @@
         </div>
         
         <div class="calendar-legend">
-          <h4>レジェンド</h4>
           <div class="legend-items">
             <% venue_colors = {
               "東京" => "#e73562",
