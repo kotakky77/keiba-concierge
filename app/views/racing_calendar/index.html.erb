@@ -50,7 +50,7 @@
                   <%# イベント作成画面から来た場合のみ表示 %>
                   <% if params[:from] == 'event_new' %>
                     <button type="button" class="select-date-btn" 
-                            data-date="<%= event[:start_date].strftime('%Y-%m-%dT10:00') %>"
+                            data-date="<%= event[:start_date].strftime('%Y-%m-%d') %>"
                             data-event-name="<%= event[:summary] %>">
                       この日程を選択
                     </button>
