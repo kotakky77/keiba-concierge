@@ -16,22 +16,16 @@
 
   <div class="form-group">
     <%= f.label :name, 'イベント名' %>
-    <%= f.text_field :name, placeholder: '例: 日本ダービー観戦会', required: true, class: "form-control" %>
+    <%= f.text_field :name, placeholder: '例: ◯◯年 ◯◯大学 同期会', required: true, class: "form-control" %>
   </div>
 
   <div class="form-group">
-    <%= f.label :location, '開催場所' %>
-    <%= f.text_field :location, placeholder: '例: 東京競馬場', class: "form-control" %>
-  </div>
-
-  <div class="form-group">
-    <%= f.label :memo, 'メモ・補足情報' %>
+    <%= f.label :memo, 'コメント' %>
     <%= f.text_area :memo, rows: 4, placeholder: 'イベントについての補足情報があれば記入してください', class: "form-control" %>
   </div>
 
   <div class="form-section">
     <h3>候補日</h3>
-    <p class="help-text">複数の候補日を設定できます（後から追加も可能）</p>
     
     <div id="selected-dates-container" class="selected-dates-box">
       <!-- ここに選択済みの候補日が表示される -->
@@ -42,11 +36,6 @@
         <input type="date" name="date_options[]" class="form-control">
         <button type="button" class="remove-date" style="display:none;">削除</button>
       </div>
-    </div>
-    
-    <div class="date-actions">
-      <button type="button" id="add-date" class="btn btn-secondary">候補日を追加</button>
-      <%= link_to "レーシングカレンダーを確認", racing_calendar_path(from: 'event_new'), target: "_blank", class: "calendar-link" %>
     </div>
   </div>
 
