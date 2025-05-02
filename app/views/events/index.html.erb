@@ -434,6 +434,10 @@
   .day-number.has-events {
     background-color: #4a6eb5;
     color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
   }
   
   .date-checkbox {
@@ -446,18 +450,31 @@
   
   .race-venue-info {
     margin-top: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: center;
+    justify-content: center;
   }
   
   .venue-tag {
-    display: inline-block;
-    padding: 2px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    min-height: 24px;
+    width: fit-content;
+    height: 24px;
+    padding: 0 10px;
     border-radius: 3px;
-    margin-right: 3px;
-    margin-bottom: 3px;
+    margin-right: 0;
+    margin-bottom: 4px;
     color: white;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: bold;
-    position: relative; /* ポップアップの基準位置 */
+    position: relative;
+    text-align: center;
+    box-sizing: border-box;
   }
   
   .venue-tag.has-popup {
@@ -767,74 +784,75 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
   
-  // チェックボックスのイベントリスナー（通常のチェックボックスクリック時）
-  document.querySelectorAll('.date-checkbox').forEach(checkbox => {
-    checkbox.addEventListener('change', function() {
-      const dateStr = this.dataset.date;
-      const eventsStr = this.dataset.events;
-      
-      if (this.checked) {
-        // 選択された日付を追加
-        selectedDates.set(dateStr, eventsStr);
-      } else {
-        // 選択解除された日付を削除
-        selectedDates.delete(dateStr);
-      }
-      
+  // カレンダー上の会場ラベルクリック時の処理
+  document.querySelectorAll('.venue-tag').forEach(venueTag => {
+    venueTag.addEventListener('click', function(e) {
+      e.stopPropagation(); // 日付セルのクリックイベントを止める
+      // 日付情報を取得
+      const dayCell = this.closest('.calendar-day');
+      if (!dayCell) return;
+      const checkbox = dayCell.querySelector('.date-checkbox');
+      if (!checkbox) return;
+      const dateStr = checkbox.dataset.date;
+      // 会場名のみを厳密に取得（子要素や余計なテキストを除外）
+      let venueName = this.childNodes[0]?.nodeValue?.trim() || this.textContent.trim();
+      // もし venueName に改行や空白が混ざっていたら除去
+      venueName = venueName.split(/\s|\n/)[0];
+      // 日付＋場名の表示用テキスト
+      const dateObj = new Date(dateStr);
+      const formattedDate = `${dateObj.getFullYear()}年${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
+      const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][dateObj.getDay()];
+      const displayText = `${formattedDate}(${dayOfWeek})　${venueName}`;
+      // チェックボックスをONに
+      checkbox.checked = true;
+      // 選択状態をセット
+      selectedDates.set(dateStr, displayText);
       updateSelectedDatesList();
       updateCreateButtonState();
     });
   });
-  
-  // 新規イベント作成ボタンのイベントリスナー
-  createEventBtn.addEventListener('click', function() {
-    if (selectedDates.size > 0) {
-      const selectedDatesArray = Array.from(selectedDates.keys());
-      // クエリパラメータとして選択された日付を渡す
-      window.location.href = '<%= new_event_path %>?date_options=' + encodeURIComponent(JSON.stringify(selectedDatesArray));
-    }
-  });
-  
-  // 選択された候補日リストの更新
-  function updateSelectedDatesList() {
-    selectedDatesListEl.innerHTML = '';
-    
-    if (selectedDates.size === 0) {
-      selectedDatesListEl.innerHTML = '<p>選択された候補日はありません</p>';
-      return;
-    }
-    
-    selectedDates.forEach((eventsStr, dateStr) => {
+
+  // チェックボックスのイベントリスナー（通常のチェックボックスクリック時）
+  document.querySelectorAll('.date-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+      const dateStr = this.dataset.date;
+      // venues情報を取得
+      const dayCell = this.closest('.calendar-day');
+      let venueText = '';
+      if (dayCell) {
+        const venueTags = dayCell.querySelectorAll('.venue-tag');
+        if (venueTags.length > 0) {
+          // 複数会場がある場合は最初の会場のみ表示
+          venueText = '　' + venueTags[0].textContent.trim();
+        }
+      }
+      const eventsStr = this.dataset.events;
+      // 日付＋場名の表示用テキスト
       const dateObj = new Date(dateStr);
       const formattedDate = `${dateObj.getFullYear()}年${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
       const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][dateObj.getDay()];
-      
-      const dateItemEl = document.createElement('div');
-      dateItemEl.className = 'selected-date-item';
-      
-      const dateTextEl = document.createElement('div');
-      dateTextEl.textContent = `${formattedDate}(${dayOfWeek})`;
-      
-      const removeBtnEl = document.createElement('span');
-      removeBtnEl.className = 'remove-date';
-      removeBtnEl.textContent = '×';
-      removeBtnEl.addEventListener('click', () => {
-        // チェックボックスの状態も同期して更新
-        const checkbox = document.querySelector(`.date-checkbox[data-date="${dateStr}"]`);
-        if (checkbox) checkbox.checked = false;
-        
-        // 選択リストから削除
+      const displayText = `${formattedDate}(${dayOfWeek})${venueText}`;
+      if (this.checked) {
+        // 選択された日付を追加（displayTextを値として保持）
+        selectedDates.set(dateStr, displayText);
+      } else {
+        // 選択解除された日付を削除
         selectedDates.delete(dateStr);
-        updateSelectedDatesList();
-        updateCreateButtonState();
-      });
-      
-      dateItemEl.appendChild(dateTextEl);
-      dateItemEl.appendChild(removeBtnEl);
-      selectedDatesListEl.appendChild(dateItemEl);
+      }
+      updateSelectedDatesList();
+      updateCreateButtonState();
     });
-  }
-  
+  });
+
+  // 新規イベント作成ボタンのイベントリスナー
+  createEventBtn.addEventListener('click', function() {
+    if (selectedDates.size > 0) {
+      // 日付＋場名の配列で渡す
+      const selectedDatesArray = Array.from(selectedDates.values());
+      window.location.href = '<%= new_event_path %>?date_options=' + encodeURIComponent(JSON.stringify(selectedDatesArray));
+    }
+  });
+
   // 新規イベント作成ボタンの状態更新
   function updateCreateButtonState() {
     if (selectedDates.size > 0) {
@@ -844,6 +862,34 @@ document.addEventListener('DOMContentLoaded', function() {
       createEventBtn.disabled = true;
       noDatesMsgEl.style.display = 'block';
     }
+  }
+
+  // 選択された候補日リストの更新
+  function updateSelectedDatesList() {
+    selectedDatesListEl.innerHTML = '';
+    if (selectedDates.size === 0) {
+      selectedDatesListEl.innerHTML = '<p>選択された候補日はありません</p>';
+      return;
+    }
+    selectedDates.forEach((displayText, dateStr) => {
+      const dateItemEl = document.createElement('div');
+      dateItemEl.className = 'selected-date-item';
+      const dateTextEl = document.createElement('div');
+      dateTextEl.textContent = displayText;
+      const removeBtnEl = document.createElement('span');
+      removeBtnEl.className = 'remove-date';
+      removeBtnEl.textContent = '×';
+      removeBtnEl.addEventListener('click', () => {
+        const checkbox = document.querySelector(`.date-checkbox[data-date="${dateStr}"]`);
+        if (checkbox) checkbox.checked = false;
+        selectedDates.delete(dateStr);
+        updateSelectedDatesList();
+        updateCreateButtonState();
+      });
+      dateItemEl.appendChild(dateTextEl);
+      dateItemEl.appendChild(removeBtnEl);
+      selectedDatesListEl.appendChild(dateItemEl);
+    });
   }
   
   // 日付のイベント詳細を表示

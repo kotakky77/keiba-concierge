@@ -184,27 +184,22 @@ document.addEventListener('DOMContentLoaded', function() {
   if (dateOptionsParam) {
     try {
       const selectedDates = JSON.parse(decodeURIComponent(dateOptionsParam));
-      
       if (selectedDates.length > 0) {
         selectedDatesContainer.style.display = 'block';
-        
-        // 最初のinputフィールドを非表示にする（選択済みの日付がある場合）
         const firstDateOption = document.querySelector('.date-option');
         if (firstDateOption) {
           firstDateOption.style.display = 'none';
         }
-        
         // 選択された各日付をフォームに追加
-        selectedDates.forEach(function(dateStr) {
-          // hidden inputを作成して値を保持
+        selectedDates.forEach(function(displayText) {
+          // hidden inputを作成して値を保持（displayTextをそのまま格納）
           const hiddenInput = document.createElement('input');
           hiddenInput.type = 'hidden';
           hiddenInput.name = 'date_options[]';
-          hiddenInput.value = dateStr;
+          hiddenInput.value = displayText;
           dateOptions.appendChild(hiddenInput);
-          
           // 表示用の日付項目を作成
-          createSelectedDateItem(dateStr, hiddenInput);
+          createSelectedDateItem(displayText, hiddenInput);
         });
       }
     } catch (e) {
@@ -213,29 +208,20 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   // 選択された日付項目を作成する関数
-  function createSelectedDateItem(dateStr, relatedInput) {
-    const dateObj = new Date(dateStr);
-    const formattedDate = `${dateObj.getFullYear()}年${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
-    const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][dateObj.getDay()];
-    
+  function createSelectedDateItem(displayText, relatedInput) {
     const dateItem = document.createElement('div');
     dateItem.className = 'selected-date-item';
-    
     const dateText = document.createElement('div');
-    dateText.textContent = `${formattedDate}(${dayOfWeek})`;
-    
+    dateText.textContent = displayText;
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'remove-date';
     removeBtn.textContent = '削除';
     removeBtn.addEventListener('click', function() {
-      // hidden inputと表示項目を削除
       if (relatedInput) {
         relatedInput.parentNode.removeChild(relatedInput);
       }
       dateItem.parentNode.removeChild(dateItem);
-      
-      // 選択された日付がなくなった場合、コンテナを非表示にして通常のinputを表示
       if (selectedDatesContainer.children.length === 0) {
         selectedDatesContainer.style.display = 'none';
         const firstDateOption = document.querySelector('.date-option');
@@ -244,7 +230,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
     });
-    
     dateItem.appendChild(dateText);
     dateItem.appendChild(removeBtn);
     selectedDatesContainer.appendChild(dateItem);
