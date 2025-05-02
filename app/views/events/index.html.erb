@@ -1,0 +1,114 @@
+<% content_for :title, "競馬幹事コンシェルジュ | ホーム" %>
+
+<h1>競馬イベント一覧</h1>
+
+<div class="intro-section">
+  <p>
+    競馬幹事コンシェルジュは、競馬観戦イベントの幹事業務を円滑にするアプリケーションです。
+    日程調整、持ち物管理、費用精算まで、簡単に管理できます。
+  </p>
+  
+  <div class="action-buttons">
+    <%= link_to "新規イベントを作成", new_event_path, class: "btn btn-primary" %>
+    <%= link_to "JRAレーシングカレンダーを確認", racing_calendar_path, class: "btn btn-secondary" %>
+  </div>
+</div>
+
+<% if @events.present? %>
+  <h2>最近作成されたイベント</h2>
+  
+  <div class="events-list">
+    <% @events.each do |event| %>
+      <div class="event-card">
+        <h3><%= event.name %></h3>
+        
+        <div class="event-details">
+          <p>
+            <strong>開催場所:</strong> <%= event.location.presence || "未設定" %>
+          </p>
+          <p>
+            <strong>日付:</strong>
+            <% if event.confirmed_date.present? %>
+              <%= event.confirmed_date.strftime("%Y年%m月%d日 %H:%M") %>
+            <% else %>
+              調整中
+            <% end %>
+          </p>
+        </div>
+        
+        <div class="event-links">
+          <%= link_to "詳細を見る", event_path(event) %>
+          <%= link_to "共有用URL", event_by_hash_path(event.url_hash) %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% else %>
+  <div class="no-events">
+    <p>まだイベントが作成されていません。新規イベントを作成してみましょう！</p>
+  </div>
+<% end %>
+
+<style>
+  .intro-section {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 5px;
+    margin-bottom: 30px;
+  }
+  
+  .action-buttons {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+  }
+  
+  .btn {
+    display: inline-block;
+    padding: 10px 15px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  
+  .btn-primary {
+    background-color: #4a6eb5;
+    color: white;
+  }
+  
+  .btn-secondary {
+    background-color: #6c757d;
+    color: white;
+  }
+  
+  .events-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+  
+  .event-card {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .event-details {
+    margin: 10px 0;
+  }
+  
+  .event-links {
+    margin-top: 15px;
+    display: flex;
+    gap: 15px;
+  }
+  
+  .no-events {
+    text-align: center;
+    padding: 30px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+  }
+</style>
