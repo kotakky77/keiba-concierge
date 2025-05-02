@@ -149,8 +149,39 @@
                         <div class="race-venue-info">
                           <% venues.each do |venue| %>
                             <% if venue && venue_colors[venue] %>
-                              <span class="venue-tag" style="background-color: <%= venue_colors[venue] %>;">
+                              <% 
+                                # その日付と特定の競馬場に関連するイベントをフィルタリング
+                                # ここが重要：実際のレース情報（jrarace）があるものだけをフィルタリング
+                                venue_race_events = current_events.select do |event| 
+                                  # 'race'ソースからのデータのみを対象とし、かつ競馬場名が含まれているものを選択
+                                  event[:source_type] == 'race' && (
+                                    (event[:summary].present? && event[:summary].include?(venue)) ||
+                                    (event[:location].present? && event[:location].include?(venue))
+                                  )
+                                end
+                                
+                                # レース情報が実際にある場合のみポップアップを表示
+                                has_venue_events = venue_race_events.any?
+                                venue_class = has_venue_events ? "venue-tag has-popup" : "venue-tag no-popup"
+                              %>
+                              <span class="<%= venue_class %>" style="background-color: <%= venue_colors[venue] %>; <%= has_venue_events ? 'cursor: pointer;' : 'cursor: default;' %>">
                                 <%= venue %>
+                                <% if has_venue_events %>
+                                  <div class="venue-popup">
+                                    <div class="popup-title"><%= venue %>競馬場 - <%= current_date.strftime('%Y年%m月%d日') %></div>
+                                    <% venue_race_events.each do |event| %>
+                                      <div class="popup-race">
+                                        <% if event[:summary].match(/\(G[123]\)/) %>
+                                          <span class="popup-race-grade"><%= event[:summary].match(/\(G[123]\)/)[0] %></span>
+                                        <% end %>
+                                        <%= event[:summary] %>
+                                        <% if event[:description].present? && event[:description].strip.length > 0 %>
+                                          <div class="popup-race-details"><%= event[:description] %></div>
+                                        <% end %>
+                                      </div>
+                                    <% end %>
+                                  </div>
+                                <% end %>
                               </span>
                             <% end %>
                           <% end %>
@@ -158,7 +189,31 @@
                           <% if stakes_races.any? %>
                             <div class="stakes-races">
                               <% stakes_races.take(2).each do |race| %>
-                                <div class="stakes-race-name"><%= race %></div>
+                                <% 
+                                  # そのレース名のイベントを検索
+                                  race_event = current_events.find { |event| event[:summary] == race }
+                                  has_race_info = race_event.present?
+                                  race_class = has_race_info ? "stakes-race-name has-popup" : "stakes-race-name no-popup"
+                                %>
+                                <div class="<%= race_class %>">
+                                  <%= race %>
+                                  <% if has_race_info %>
+                                    <div class="venue-popup">
+                                      <div class="popup-title">
+                                        <% if race.match(/\(G[123]\)/) %>
+                                          <span class="popup-race-grade"><%= race.match(/\(G[123]\)/)[0] %></span>
+                                        <% end %>
+                                        <%= race %>
+                                      </div>
+                                      <% if race_event[:location].present? %>
+                                        <div><%= race_event[:location] %></div>
+                                      <% end %>
+                                      <% if race_event[:description].present? %>
+                                        <div class="popup-race-details"><%= race_event[:description] %></div>
+                                      <% end %>
+                                    </div>
+                                  <% end %>
+                                </div>
                               <% end %>
                               <% if stakes_races.size > 2 %>
                                 <div class="stakes-race-more">他<%= stakes_races.size - 2 %>レース</div>
@@ -428,6 +483,64 @@
     color: white;
     font-size: 12px;
     font-weight: bold;
+    position: relative; /* ポップアップの基準位置 */
+  }
+  
+  .venue-tag.has-popup {
+    cursor: pointer;
+  }
+  
+  .venue-popup {
+    display: none;
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: white;
+    border: 1px solid #ddd;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    border-radius: 5px;
+    padding: 10px;
+    width: 220px;
+    z-index: 100;
+    text-align: left;
+    color: #333;
+    font-weight: normal;
+  }
+  
+  .venue-popup::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 0 6px 6px 6px;
+    border-style: solid;
+    border-color: transparent transparent white transparent;
+  }
+  
+  .venue-tag.has-popup:hover .venue-popup {
+    display: block;
+  }
+  
+  /* 重賞レース表示の改善 */
+  .stakes-race-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 1px;
+  }
+  
+  .stakes-race-name.has-popup {
+    cursor: pointer;
+  }
+  
+  .stakes-race-name .venue-popup {
+    width: 180px;
+  }
+  
+  .stakes-race-name.has-popup:hover .venue-popup {
+    display: block;
   }
   
   .stakes-races {
@@ -659,6 +772,9 @@ document.addEventListener('DOMContentLoaded', function() {
       // チェックボックス自体のクリックはここでは処理しない（イベントバブリングで処理される）
       if (e.target.classList.contains('date-checkbox')) return;
       
+      // ポップアップ内のクリックイベントは伝播させない
+      if (e.target.closest('.venue-popup')) return;
+      
       // この日付セル内のチェックボックスを取得
       const checkbox = this.querySelector('.date-checkbox');
       if (checkbox) {
@@ -779,15 +895,22 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let html = `<h4>${formattedDate}（${dayOfWeek}）の開催情報</h4>`;
     
-    dayEvents.forEach(event => {
-      html += `
-        <div class="event-detail-item">
-          <div class="event-detail-title">${event.summary}</div>
-          ${event.location ? `<div class="event-detail-location">${event.location}</div>` : ''}
-          ${event.description ? `<div class="event-detail-description">${event.description}</div>` : ''}
-        </div>
-      `;
-    });
+    // race_eventsのみフィルタリング（source_type = 'race'のもの）
+    const raceEvents = dayEvents.filter(event => event.source_type === 'race');
+    
+    if (raceEvents.length === 0) {
+      html += '<p>この日のレース情報はありません</p>';
+    } else {
+      raceEvents.forEach(event => {
+        html += `
+          <div class="event-detail-item">
+            <div class="event-detail-title">${event.summary}</div>
+            ${event.location ? `<div class="event-detail-location">${event.location}</div>` : ''}
+            ${event.description ? `<div class="event-detail-description">${event.description}</div>` : ''}
+          </div>
+        `;
+      });
+    }
     
     eventDetailsContentEl.innerHTML = html;
   }

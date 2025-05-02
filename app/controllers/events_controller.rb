@@ -96,14 +96,14 @@ class EventsController < ApplicationController
         # 開催情報ファイルの読み込み
         if File.exist?(kaisai_file_path)
           ical_data = File.read(kaisai_file_path)
-          kaisai_events = parse_icalendar(ical_data)
+          kaisai_events = parse_icalendar(ical_data, 'kaisai')
           events.concat(kaisai_events) if kaisai_events
         end
         
         # レース情報ファイルの読み込み
         if File.exist?(race_file_path)
           ical_data = File.read(race_file_path)
-          race_events = parse_icalendar(ical_data)
+          race_events = parse_icalendar(ical_data, 'race')
           events.concat(race_events) if race_events
         end
         
@@ -117,7 +117,7 @@ class EventsController < ApplicationController
     calendar_data
   end
   
-  def parse_icalendar(ical_data)
+  def parse_icalendar(ical_data, source_type)
     begin
       require 'icalendar'
       calendars = Icalendar::Calendar.parse(ical_data)
@@ -131,7 +131,8 @@ class EventsController < ApplicationController
           description: event.description.to_s,
           location: event.location.to_s,
           start_date: event.dtstart.to_date,
-          end_date: event.dtend.to_date
+          end_date: event.dtend.to_date,
+          source_type: source_type # データソースの種類を追加（'kaisai' または 'race'）
         }
       end
       
