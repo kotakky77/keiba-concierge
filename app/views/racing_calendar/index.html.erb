@@ -1,0 +1,241 @@
+<% content_for :title, "競馬幹事コンシェルジュ | レーシングカレンダー" %>
+
+<h1>JRAレーシングカレンダー</h1>
+
+<div class="calendar-controls">
+  <div class="year-selector">
+    <strong>年を選択:</strong>
+    <% (Date.today.year..Date.today.year + 1).each do |year| %>
+      <%= link_to year.to_s, racing_calendar_path(year: year, month: @month), class: "year-link #{year.to_s == @year.to_s ? 'active' : ''}" %>
+    <% end %>
+  </div>
+  
+  <div class="month-selector">
+    <strong>月を選択:</strong>
+    <% (1..12).each do |month| %>
+      <%= link_to month.to_s + "月", racing_calendar_path(year: @year, month: month), class: "month-link #{month.to_s == @month.to_s ? 'active' : ''}" %>
+    <% end %>
+  </div>
+</div>
+
+<% if @calendar_data.present? %>
+  <div class="calendar-view">
+    <h2><%= @year %>年<%= @month %>月 開催予定</h2>
+    
+    <% # その月のイベントをフィルタリング %>
+    <% month_events = @calendar_data.select { |event| event[:start_date].month == @month.to_i && event[:start_date].year == @year.to_i } %>
+    
+    <% if month_events.any? %>
+      <div class="race-events">
+        <% # 開催日ごとにグループ化 %>
+        <% month_events.group_by { |event| event[:start_date] }.sort.each do |date, events| %>
+          <div class="race-day">
+            <h3 class="date-header"><%= date.strftime("%Y年%m月%d日") %> (<%= I18n.l(date, format: '%a') %>)</h3>
+            
+            <div class="events-list">
+              <% events.each do |event| %>
+                <div class="race-event">
+                  <h4 class="event-title"><%= event[:summary] %></h4>
+                  
+                  <% if event[:location].present? %>
+                    <p class="event-location"><%= event[:location] %></p>
+                  <% end %>
+                  
+                  <% if event[:description].present? %>
+                    <div class="event-description">
+                      <%= simple_format(event[:description]) %>
+                    </div>
+                  <% end %>
+                  
+                  <%# イベント作成画面から来た場合のみ表示 %>
+                  <% if params[:from] == 'event_new' %>
+                    <button type="button" class="select-date-btn" 
+                            data-date="<%= event[:start_date].strftime('%Y-%m-%d') %>"
+                            data-event-name="<%= event[:summary] %>">
+                      この日程を選択
+                    </button>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="no-events-message">
+        <p><%= @year %>年<%= @month %>月のレース開催予定はありません。</p>
+      </div>
+    <% end %>
+  </div>
+<% else %>
+  <div class="error-message">
+    <p>レーシングカレンダーの取得に失敗しました。しばらく経ってから再度お試しください。</p>
+  </div>
+<% end %>
+
+<div class="action-buttons">
+  <%= link_to "ホームに戻る", root_path, class: "btn btn-secondary" %>
+  <% if params[:from] == 'event_new' %>
+    <%= link_to "イベント作成に戻る", new_event_path, class: "btn btn-primary" %>
+  <% else %>
+    <%= link_to "新規イベント作成", new_event_path, class: "btn btn-primary" %>
+  <% end %>
+</div>
+
+<style>
+  .calendar-controls {
+    margin-bottom: 30px;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+  }
+  
+  .year-selector, .month-selector {
+    margin-bottom: 10px;
+  }
+  
+  .year-link, .month-link {
+    display: inline-block;
+    margin: 0 5px 5px 0;
+    padding: 5px 10px;
+    border-radius: 3px;
+    text-decoration: none;
+    background-color: #e9ecef;
+    color: #495057;
+  }
+  
+  .year-link.active, .month-link.active {
+    background-color: #4a6eb5;
+    color: white;
+    font-weight: bold;
+  }
+  
+  .calendar-view {
+    margin-bottom: 30px;
+  }
+  
+  .race-day {
+    margin-bottom: 30px;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 20px;
+  }
+  
+  .date-header {
+    padding: 10px 0;
+    margin-bottom: 15px;
+    color: #495057;
+    border-bottom: 2px solid #4a6eb5;
+  }
+  
+  .events-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+  
+  .race-event {
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  
+  .event-title {
+    margin-top: 0;
+    color: #4a6eb5;
+  }
+  
+  .event-location {
+    color: #6c757d;
+    font-style: italic;
+    margin-bottom: 10px;
+  }
+  
+  .event-description {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #495057;
+  }
+  
+  .select-date-btn {
+    margin-top: 15px;
+    padding: 5px 15px;
+    background-color: #4a6eb5;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  
+  .select-date-btn:hover {
+    background-color: #3a5a9f;
+  }
+  
+  .no-events-message, .error-message {
+    background-color: #f8f9fa;
+    padding: 30px;
+    border-radius: 5px;
+    text-align: center;
+    color: #6c757d;
+  }
+  
+  .error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+  
+  .action-buttons {
+    margin-top: 30px;
+    display: flex;
+    gap: 10px;
+  }
+  
+  .btn {
+    display: inline-block;
+    padding: 10px 15px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  
+  .btn-primary {
+    background-color: #4a6eb5;
+    color: white;
+  }
+  
+  .btn-secondary {
+    background-color: #6c757d;
+    color: white;
+  }
+</style>
+
+<% if params[:from] == 'event_new' %>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // 「この日程を選択」ボタンが押されたときの処理
+  const selectButtons = document.querySelectorAll('.select-date-btn');
+  
+  selectButtons.forEach(function(button) {
+    button.addEventListener('click', function() {
+      // データ属性から日付とイベント名を取得
+      const selectedDate = this.getAttribute('data-date');
+      const eventName = this.getAttribute('data-event-name');
+      
+      // 親ウィンドウ（イベント作成画面）に値を戻す
+      window.opener.document.querySelector('input[name="date_options[]"]').value = selectedDate;
+      
+      // すでにイベント名が入力されていなければ、イベント名も設定
+      const nameField = window.opener.document.querySelector('input[name="event[name]"]');
+      if (!nameField.value) {
+        nameField.value = eventName + " 観戦会";
+      }
+      
+      // ウィンドウを閉じる
+      window.close();
+    });
+  });
+});
+</script>
+<% end %>

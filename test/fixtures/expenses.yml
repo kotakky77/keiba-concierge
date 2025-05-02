@@ -1,0 +1,15 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  name: MyString
+  amount: 1
+  event: one
+  payer: one
+  paid_status: false
+
+two:
+  name: MyString
+  amount: 1
+  event: two
+  payer: two
+  paid_status: false

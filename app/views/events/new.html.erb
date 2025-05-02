@@ -1,0 +1,287 @@
+<% content_for :title, "競馬幹事コンシェルジュ | 新規イベント作成" %>
+
+<h1>新規競馬イベント作成</h1>
+
+<%= form_with(model: @event, class: "event-form") do |f| %>
+  <% if @event.errors.any? %>
+    <div class="error-message">
+      <h2><%= pluralize(@event.errors.count, "error") %> があります:</h2>
+      <ul>
+        <% @event.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="form-group">
+    <%= f.label :name, 'イベント名' %>
+    <%= f.text_field :name, placeholder: '例: 日本ダービー観戦会', required: true, class: "form-control" %>
+  </div>
+
+  <div class="form-group">
+    <%= f.label :location, '開催場所' %>
+    <%= f.text_field :location, placeholder: '例: 東京競馬場', class: "form-control" %>
+  </div>
+
+  <div class="form-group">
+    <%= f.label :memo, 'メモ・補足情報' %>
+    <%= f.text_area :memo, rows: 4, placeholder: 'イベントについての補足情報があれば記入してください', class: "form-control" %>
+  </div>
+
+  <div class="form-section">
+    <h3>候補日</h3>
+    <p class="help-text">複数の候補日を設定できます（後から追加も可能）</p>
+    
+    <div id="selected-dates-container" class="selected-dates-box">
+      <!-- ここに選択済みの候補日が表示される -->
+    </div>
+    
+    <div id="date-options">
+      <div class="date-option">
+        <input type="date" name="date_options[]" class="form-control">
+        <button type="button" class="remove-date" style="display:none;">削除</button>
+      </div>
+    </div>
+    
+    <div class="date-actions">
+      <button type="button" id="add-date" class="btn btn-secondary">候補日を追加</button>
+      <%= link_to "レーシングカレンダーを確認", racing_calendar_path(from: 'event_new'), target: "_blank", class: "calendar-link" %>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <%= f.submit '作成する', class: "btn btn-primary" %>
+    <%= link_to 'キャンセル', root_path, class: "btn btn-text" %>
+  </div>
+<% end %>
+
+<style>
+  .event-form {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .form-group {
+    margin-bottom: 20px;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+  }
+  
+  .form-control {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+  }
+  
+  .help-text {
+    color: #6c757d;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  
+  .form-section {
+    margin: 30px 0;
+  }
+  
+  .date-option {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  
+  .remove-date {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .selected-dates-box {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #e9ecef;
+    border-radius: 5px;
+    display: none; /* 初期状態では非表示 */
+  }
+  
+  .selected-date-item {
+    display: flex;
+    justify-content: space-between;
+    background-color: white;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+  }
+  
+  .selected-date-item:last-child {
+    margin-bottom: 0;
+  }
+  
+  .date-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 15px;
+    align-items: center;
+  }
+  
+  .calendar-link {
+    color: #4a6eb5;
+    text-decoration: underline;
+  }
+  
+  .form-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+  }
+  
+  .btn-text {
+    background: none;
+    color: #4a6eb5;
+    text-decoration: underline;
+    padding: 10px 0;
+  }
+  
+  .error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+  }
+  
+  .btn {
+    display: inline-block;
+    padding: 10px 15px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: bold;
+    cursor: pointer;
+    border: none;
+  }
+  
+  .btn-primary {
+    background-color: #4a6eb5;
+    color: white;
+  }
+  
+  .btn-secondary {
+    background-color: #6c757d;
+    color: white;
+  }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const dateOptions = document.getElementById('date-options');
+  const addDateBtn = document.getElementById('add-date');
+  const selectedDatesContainer = document.getElementById('selected-dates-container');
+  
+  // URLから選択された候補日を取得
+  const urlParams = new URLSearchParams(window.location.search);
+  const dateOptionsParam = urlParams.get('date_options');
+  
+  if (dateOptionsParam) {
+    try {
+      const selectedDates = JSON.parse(decodeURIComponent(dateOptionsParam));
+      
+      if (selectedDates.length > 0) {
+        selectedDatesContainer.style.display = 'block';
+        
+        // 最初のinputフィールドを非表示にする（選択済みの日付がある場合）
+        const firstDateOption = document.querySelector('.date-option');
+        if (firstDateOption) {
+          firstDateOption.style.display = 'none';
+        }
+        
+        // 選択された各日付をフォームに追加
+        selectedDates.forEach(function(dateStr) {
+          // hidden inputを作成して値を保持
+          const hiddenInput = document.createElement('input');
+          hiddenInput.type = 'hidden';
+          hiddenInput.name = 'date_options[]';
+          hiddenInput.value = dateStr;
+          dateOptions.appendChild(hiddenInput);
+          
+          // 表示用の日付項目を作成
+          createSelectedDateItem(dateStr, hiddenInput);
+        });
+      }
+    } catch (e) {
+      console.error('日付パラメータの解析に失敗しました:', e);
+    }
+  }
+  
+  // 選択された日付項目を作成する関数
+  function createSelectedDateItem(dateStr, relatedInput) {
+    const dateObj = new Date(dateStr);
+    const formattedDate = `${dateObj.getFullYear()}年${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
+    const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][dateObj.getDay()];
+    
+    const dateItem = document.createElement('div');
+    dateItem.className = 'selected-date-item';
+    
+    const dateText = document.createElement('div');
+    dateText.textContent = `${formattedDate}(${dayOfWeek})`;
+    
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'remove-date';
+    removeBtn.textContent = '削除';
+    removeBtn.addEventListener('click', function() {
+      // hidden inputと表示項目を削除
+      if (relatedInput) {
+        relatedInput.parentNode.removeChild(relatedInput);
+      }
+      dateItem.parentNode.removeChild(dateItem);
+      
+      // 選択された日付がなくなった場合、コンテナを非表示にして通常のinputを表示
+      if (selectedDatesContainer.children.length === 0) {
+        selectedDatesContainer.style.display = 'none';
+        const firstDateOption = document.querySelector('.date-option');
+        if (firstDateOption) {
+          firstDateOption.style.display = 'flex';
+        }
+      }
+    });
+    
+    dateItem.appendChild(dateText);
+    dateItem.appendChild(removeBtn);
+    selectedDatesContainer.appendChild(dateItem);
+  }
+  
+  // 候補日追加ボタンのイベントリスナー
+  addDateBtn.addEventListener('click', function() {
+    const newOption = document.createElement('div');
+    newOption.className = 'date-option';
+    newOption.innerHTML = `
+      <input type="date" name="date_options[]" class="form-control">
+      <button type="button" class="remove-date">削除</button>
+    `;
+    dateOptions.appendChild(newOption);
+    
+    // 追加した削除ボタンにイベントリスナーを設定
+    const removeBtn = newOption.querySelector('.remove-date');
+    removeBtn.addEventListener('click', function() {
+      dateOptions.removeChild(newOption);
+    });
+  });
+  
+  // フォームの最初の削除ボタンは表示しない（1つ目はデフォルトで必ず表示）
+  const firstRemoveBtn = dateOptions.querySelector('.remove-date');
+  if (firstRemoveBtn) {
+    firstRemoveBtn.style.display = 'none';
+  }
+});
+</script>

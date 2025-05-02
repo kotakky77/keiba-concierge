@@ -1,0 +1,883 @@
+<% content_for :title, "競馬幹事コンシェルジュ | #{@event.name}" %>
+
+<div class="event-header">
+  <h1><%= @event.name %></h1>
+  
+  <div class="event-url-box">
+    <p>共有用URL:</p>
+    <div class="url-copy-container">
+      <input type="text" value="<%= event_by_hash_url(@event.url_hash) %>" id="event-url" readonly class="url-input">
+      <button onclick="copyEventUrl()" class="copy-btn">コピー</button>
+    </div>
+    <p class="help-text">このURLを参加者に共有して、日程調整や持ち物担当の登録をしてもらいましょう。</p>
+  </div>
+</div>
+
+<div class="event-tabs">
+  <button class="tab-button active" onclick="openTab(event, 'tab-basic-info')">基本情報</button>
+  <button class="tab-button" onclick="openTab(event, 'tab-schedule')">日程調整</button>
+  <button class="tab-button" onclick="openTab(event, 'tab-items')">持ち物リスト</button>
+  <button class="tab-button" onclick="openTab(event, 'tab-expenses')">精算情報</button>
+</div>
+
+<!-- 基本情報タブ -->
+<div id="tab-basic-info" class="tab-content active">
+  <div class="event-info-section">
+    <h2>イベント情報</h2>
+    
+    <div class="info-grid">
+      <div class="info-item">
+        <span class="label">場所:</span>
+        <span class="value"><%= @event.location.presence || "未設定" %></span>
+      </div>
+      
+      <div class="info-item">
+        <span class="label">日時:</span>
+        <span class="value">
+          <% if @event.confirmed_date.present? %>
+            <%= @event.confirmed_date.strftime("%Y年%m月%d日 %H:%M") %>
+          <% else %>
+            調整中
+          <% end %>
+        </span>
+      </div>
+      
+      <div class="info-item">
+        <span class="label">状態:</span>
+        <span class="value"><%= @event.status.presence || "計画中" %></span>
+      </div>
+    </div>
+    
+    <% if @event.memo.present? %>
+      <div class="memo-box">
+        <h3>メモ・補足情報</h3>
+        <div class="memo-content"><%= simple_format(@event.memo) %></div>
+      </div>
+    <% end %>
+    
+    <div class="action-buttons">
+      <%= link_to "編集する", edit_event_path(@event), class: "btn btn-secondary" %>
+    </div>
+  </div>
+  
+  <div class="participants-section">
+    <h2>参加者一覧</h2>
+    
+    <% if @participants.any? %>
+      <div class="participants-list">
+        <% @participants.each do |participant| %>
+          <div class="participant-item">
+            <%= participant.name %>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p>まだ参加者の登録がありません。</p>
+    <% end %>
+  </div>
+</div>
+
+<!-- 日程調整タブ -->
+<div id="tab-schedule" class="tab-content">
+  <h2>日程調整</h2>
+  
+  <!-- 日程候補の追加フォーム -->
+  <div class="date-option-form">
+    <h3>候補日の追加</h3>
+    <%= form_with(model: @new_date_option, url: event_date_options_path(@event), local: true) do |f| %>
+      <div class="form-group">
+        <%= f.label :date, '候補日' %>
+        <%= f.date_field :date, required: true, class: 'form-control' %>
+      </div>
+      <%= f.submit '候補日を追加', class: 'btn btn-primary' %>
+    <% end %>
+  </div>
+  
+  <!-- 候補日と参加状況の表示 -->
+  <% if @date_options.any? %>
+    <div class="date-options-table-container">
+      <h3>候補日一覧と出欠状況</h3>
+      
+      <table class="date-options-table">
+        <thead>
+          <tr>
+            <th>候補日時</th>
+            <% @participants.each do |participant| %>
+              <th><%= participant.name %></th>
+            <% end %>
+            <th>アクション</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @date_options.each do |date_option| %>
+            <tr>
+              <td class="date-cell"><%= date_option.date.strftime("%Y/%m/%d") %></td>
+              
+              <% @participants.each do |participant| %>
+                <% attendance = Attendance.find_by(participant: participant, date_option: date_option) %>
+                <td class="attendance-cell">
+                  <% if attendance %>
+                    <span class="status-<%= attendance.status %>">
+                      <%= { 'yes' => '○', 'maybe' => '△', 'no' => '×' }[attendance.status] %>
+                    </span>
+                    <% if attendance.comment.present? %>
+                      <span class="comment-icon" title="<%= attendance.comment %>">💬</span>
+                    <% end %>
+                  <% else %>
+                    -
+                  <% end %>
+                </td>
+              <% end %>
+              
+              <td class="action-cell">
+                <% if @event.confirmed_date.nil? %>
+                  <%= button_to '日程を確定', event_path(@event), method: :patch, params: { event: { confirmed_date: date_option.date } }, class: 'btn btn-sm btn-success' %>
+                <% end %>
+                <%= button_to '削除', event_date_option_path(@event, date_option), method: :delete, class: 'btn btn-sm btn-danger', data: { confirm: '本当に削除しますか？' } %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <div class="no-options-message">
+      <p>候補日がまだ登録されていません。上のフォームから候補日を追加してください。</p>
+    </div>
+  <% end %>
+  
+  <!-- 出欠回答フォーム -->
+  <div class="attendance-form">
+    <h3>出欠を回答する</h3>
+    
+    <% if @date_options.any? %>
+      <%= form_with(scope: :attendance_form, url: event_participants_path(@event), local: true, class: 'response-form') do |f| %>
+        <div class="form-group">
+          <%= f.label :name, 'お名前' %>
+          <%= f.text_field :name, required: true, class: 'form-control' %>
+        </div>
+        
+        <div class="form-group">
+          <%= f.label :comment, 'コメント（任意）' %>
+          <%= f.text_area :comment, class: 'form-control', rows: 2 %>
+        </div>
+        
+        <div class="date-responses">
+          <h4>各候補日への回答</h4>
+          
+          <% @date_options.each do |date_option| %>
+            <div class="date-response-item">
+              <p class="date-label"><%= date_option.date.strftime("%Y/%m/%d") %></p>
+              
+              <div class="response-options">
+                <%= f.radio_button "date_option_ids[#{date_option.id}]", 'yes', id: "yes_#{date_option.id}", required: true %>
+                <%= f.label "yes_#{date_option.id}", '○ 参加可能', class: 'radio-label yes-label' %>
+                
+                <%= f.radio_button "date_option_ids[#{date_option.id}]", 'maybe', id: "maybe_#{date_option.id}" %>
+                <%= f.label "maybe_#{date_option.id}", '△ 微妙/未定', class: 'radio-label maybe-label' %>
+                
+                <%= f.radio_button "date_option_ids[#{date_option.id}]", 'no', id: "no_#{date_option.id}" %>
+                <%= f.label "no_#{date_option.id}", '× 参加不可', class: 'radio-label no-label' %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+        
+        <%= f.submit '回答を送信', class: 'btn btn-primary' %>
+      <% end %>
+    <% else %>
+      <p>候補日が登録されると、ここに出欠回答フォームが表示されます。</p>
+    <% end %>
+  </div>
+</div>
+
+<!-- 持ち物リストタブ -->
+<div id="tab-items" class="tab-content">
+  <h2>持ち物リスト</h2>
+  
+  <!-- 持ち物追加フォーム -->
+  <div class="item-form">
+    <h3>持ち物の追加</h3>
+    <%= form_with(model: @new_item, url: event_items_path(@event), local: true) do |f| %>
+      <div class="form-row">
+        <div class="form-group">
+          <%= f.label :name, '品目' %>
+          <%= f.text_field :name, required: true, class: 'form-control' %>
+        </div>
+        
+        <div class="form-group">
+          <%= f.label :quantity, '数量' %>
+          <%= f.number_field :quantity, min: 1, value: 1, class: 'form-control quantity-input' %>
+        </div>
+        
+        <%= f.submit '追加', class: 'btn btn-primary' %>
+      </div>
+    <% end %>
+  </div>
+  
+  <!-- 持ち物リスト -->
+  <% if @items.any? %>
+    <div class="items-table-container">
+      <h3>持ち物一覧</h3>
+      
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>品目</th>
+            <th>数量</th>
+            <th>担当者</th>
+            <th>アクション</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @items.each do |item| %>
+            <tr>
+              <td><%= item.name %></td>
+              <td><%= item.quantity %></td>
+              <td>
+                <% if item.participant %>
+                  <%= item.participant.name %>
+                <% else %>
+                  <span class="not-assigned">未割当</span>
+                <% end %>
+              </td>
+              <td class="action-cell">
+                <% if item.participant.nil? %>
+                  <div class="assign-form">
+                    <%= form_with(url: event_item_path(@event, item), method: :patch, local: true) do |f| %>
+                      <% if @participants.any? %>
+                        <%= f.select :participant_id, @participants.map { |p| [p.name, p.id] }, { include_blank: '担当者を選択' }, class: 'form-select' %>
+                        <%= f.submit '担当する', class: 'btn btn-sm btn-secondary' %>
+                      <% else %>
+                        <span class="help-text">参加者がいません</span>
+                      <% end %>
+                    <% end %>
+                  </div>
+                <% else %>
+                  <%= button_to '担当解除', event_item_path(@event, item), method: :patch, params: { participant_id: nil }, class: 'btn btn-sm btn-outline' %>
+                <% end %>
+                <%= button_to '削除', event_item_path(@event, item), method: :delete, class: 'btn btn-sm btn-danger', data: { confirm: '本当に削除しますか？' } %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <div class="no-items-message">
+      <p>持ち物がまだ登録されていません。上のフォームから持ち物を追加してください。</p>
+    </div>
+  <% end %>
+</div>
+
+<!-- 精算情報タブ -->
+<div id="tab-expenses" class="tab-content">
+  <h2>精算情報</h2>
+  
+  <!-- 費用追加フォーム -->
+  <div class="expense-form">
+    <h3>費用の登録</h3>
+    <%= form_with(model: @new_expense, url: event_expenses_path(@event), local: true) do |f| %>
+      <div class="form-row">
+        <div class="form-group">
+          <%= f.label :name, '項目' %>
+          <%= f.text_field :name, required: true, placeholder: '例: 入場料', class: 'form-control' %>
+        </div>
+        
+        <div class="form-group">
+          <%= f.label :amount, '金額 (円)' %>
+          <%= f.number_field :amount, min: 1, required: true, class: 'form-control' %>
+        </div>
+        
+        <div class="form-group">
+          <%= f.label :payer_id, '支払者' %>
+          <%= f.collection_select :payer_id, @participants, :id, :name, { prompt: '選択してください' }, { required: true, class: 'form-select' } %>
+        </div>
+        
+        <%= f.submit '登録', class: 'btn btn-primary' %>
+      </div>
+    <% end %>
+  </div>
+  
+  <!-- 費用一覧 -->
+  <% if @expenses.any? %>
+    <div class="expenses-table-container">
+      <h3>費用一覧</h3>
+      
+      <table class="expenses-table">
+        <thead>
+          <tr>
+            <th>項目</th>
+            <th>金額</th>
+            <th>支払者</th>
+            <th>状態</th>
+            <th>アクション</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @expenses.each do |expense| %>
+            <tr>
+              <td><%= expense.name %></td>
+              <td class="amount-cell"><%= number_with_delimiter(expense.amount) %>円</td>
+              <td><%= expense.payer.name %></td>
+              <td>
+                <% if expense.paid_status %>
+                  <span class="status-paid">精算済み</span>
+                <% else %>
+                  <span class="status-unpaid">未精算</span>
+                <% end %>
+              </td>
+              <td class="action-cell">
+                <% if expense.paid_status %>
+                  <%= button_to '未精算に戻す', event_expense_path(@event, expense), method: :patch, params: { expense: { paid_status: false } }, class: 'btn btn-sm btn-outline' %>
+                <% else %>
+                  <%= button_to '精算済みにする', event_expense_path(@event, expense), method: :patch, params: { expense: { paid_status: true } }, class: 'btn btn-sm btn-success' %>
+                <% end %>
+                <%= button_to '削除', event_expense_path(@event, expense), method: :delete, class: 'btn btn-sm btn-danger', data: { confirm: '本当に削除しますか？' } %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      
+      <!-- 精算サマリー -->
+      <div class="expense-summary">
+        <h4>精算サマリー</h4>
+        
+        <div class="summary-box">
+          <div class="summary-item">
+            <span class="label">合計金額:</span>
+            <span class="value"><%= number_with_delimiter(@expenses.sum(&:amount)) %>円</span>
+          </div>
+          
+          <div class="summary-item">
+            <span class="label">参加者一人あたり:</span>
+            <span class="value">
+              <% if @participants.any? %>
+                <%= number_with_delimiter((@expenses.sum(&:amount) / @participants.size.to_f).ceil) %>円
+              <% else %>
+                0円
+              <% end %>
+            </span>
+          </div>
+          
+          <div class="participants-payment">
+            <h5>参加者ごとの支払い/受け取り額</h5>
+            
+            <% if @participants.any? %>
+              <div class="payment-list">
+                <% per_person = (@expenses.sum(&:amount) / @participants.size.to_f).ceil %>
+                
+                <% @participants.each do |participant| %>
+                  <% paid_amount = @expenses.select { |e| e.payer_id == participant.id }.sum(&:amount) %>
+                  <% balance = paid_amount - per_person %>
+                  
+                  <div class="payment-item">
+                    <span class="name"><%= participant.name %></span>
+                    <span class="paid-amount">支払済み: <%= number_with_delimiter(paid_amount) %>円</span>
+                    
+                    <span class="balance <%= balance >= 0 ? 'positive' : 'negative' %>">
+                      <% if balance > 0 %>
+                        受け取り: <%= number_with_delimiter(balance.abs) %>円
+                      <% elsif balance < 0 %>
+                        支払い: <%= number_with_delimiter(balance.abs) %>円
+                      <% else %>
+                        精算不要
+                      <% end %>
+                    </span>
+                  </div>
+                <% end %>
+              </div>
+            <% else %>
+              <p>参加者が登録されていません。</p>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% else %>
+    <div class="no-expenses-message">
+      <p>費用情報がまだ登録されていません。上のフォームから費用を追加してください。</p>
+    </div>
+  <% end %>
+</div>
+
+<style>
+  /* イベントヘッダー */
+  .event-header {
+    margin-bottom: 30px;
+  }
+  
+  .event-url-box {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin-top: 15px;
+  }
+  
+  .url-copy-container {
+    display: flex;
+    margin: 10px 0;
+  }
+  
+  .url-input {
+    flex-grow: 1;
+    padding: 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px 0 0 4px;
+    background-color: #f1f3f5;
+  }
+  
+  .copy-btn {
+    padding: 8px 15px;
+    background-color: #4a6eb5;
+    color: white;
+    border: none;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+  }
+  
+  .help-text {
+    color: #6c757d;
+    font-size: 14px;
+    margin: 5px 0;
+  }
+  
+  /* タブ */
+  .event-tabs {
+    display: flex;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 20px;
+    overflow-x: auto;
+  }
+  
+  .tab-button {
+    padding: 10px 20px;
+    background-color: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-weight: bold;
+    color: #6c757d;
+    transition: all 0.3s;
+  }
+  
+  .tab-button:hover {
+    color: #4a6eb5;
+  }
+  
+  .tab-button.active {
+    color: #4a6eb5;
+    border-bottom-color: #4a6eb5;
+  }
+  
+  .tab-content {
+    display: none;
+    padding: 20px 0;
+  }
+  
+  .tab-content.active {
+    display: block;
+  }
+  
+  /* 基本情報セクション */
+  .event-info-section, .participants-section {
+    margin-bottom: 30px;
+  }
+  
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+  }
+  
+  .info-item {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .label {
+    font-weight: bold;
+    color: #6c757d;
+    margin-bottom: 5px;
+  }
+  
+  .value {
+    font-size: 18px;
+  }
+  
+  .memo-box {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 20px 0;
+  }
+  
+  .participants-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 15px;
+  }
+  
+  .participant-item {
+    background-color: #e9ecef;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+  }
+  
+  /* 日程調整セクション */
+  .date-option-form, .date-options-table-container, .attendance-form {
+    margin-bottom: 30px;
+  }
+  
+  .date-options-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+  }
+  
+  .date-options-table th, .date-options-table td {
+    border: 1px solid #dee2e6;
+    padding: 10px;
+    text-align: center;
+  }
+  
+  .date-options-table th {
+    background-color: #f8f9fa;
+  }
+  
+  .date-cell {
+    white-space: nowrap;
+    font-weight: bold;
+  }
+  
+  .attendance-cell {
+    font-size: 18px;
+  }
+  
+  .status-yes {
+    color: #28a745;
+    font-weight: bold;
+  }
+  
+  .status-maybe {
+    color: #ffc107;
+    font-weight: bold;
+  }
+  
+  .status-no {
+    color: #dc3545;
+    font-weight: bold;
+  }
+  
+  .comment-icon {
+    margin-left: 3px;
+    cursor: help;
+  }
+  
+  .action-cell {
+    white-space: nowrap;
+  }
+  
+  .date-response-item {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+  }
+  
+  .date-label {
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+  
+  .response-options {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+  
+  .radio-label {
+    margin-right: 10px;
+    cursor: pointer;
+  }
+  
+  .yes-label {
+    color: #28a745;
+  }
+  
+  .maybe-label {
+    color: #ffc107;
+  }
+  
+  .no-label {
+    color: #dc3545;
+  }
+  
+  /* 持ち物セクション */
+  .item-form, .items-table-container {
+    margin-bottom: 30px;
+  }
+  
+  .form-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+  
+  .quantity-input {
+    width: 80px;
+  }
+  
+  .items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+  }
+  
+  .items-table th, .items-table td {
+    border: 1px solid #dee2e6;
+    padding: 10px;
+  }
+  
+  .items-table th {
+    background-color: #f8f9fa;
+  }
+  
+  .not-assigned {
+    color: #6c757d;
+    font-style: italic;
+  }
+  
+  .form-select {
+    padding: 5px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    margin-right: 5px;
+  }
+  
+  /* 精算情報セクション */
+  .expense-form, .expenses-table-container {
+    margin-bottom: 30px;
+  }
+  
+  .expenses-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+  }
+  
+  .expenses-table th, .expenses-table td {
+    border: 1px solid #dee2e6;
+    padding: 10px;
+  }
+  
+  .expenses-table th {
+    background-color: #f8f9fa;
+  }
+  
+  .amount-cell {
+    text-align: right;
+    font-weight: bold;
+  }
+  
+  .status-paid {
+    color: #28a745;
+    font-weight: bold;
+  }
+  
+  .status-unpaid {
+    color: #dc3545;
+    font-weight: bold;
+  }
+  
+  .expense-summary {
+    margin-top: 30px;
+  }
+  
+  .summary-box {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+  }
+  
+  .summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 18px;
+  }
+  
+  .participants-payment {
+    margin-top: 20px;
+  }
+  
+  .payment-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+  }
+  
+  .payment-item {
+    padding: 10px;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+  }
+  
+  .payment-item .name {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+  
+  .payment-item .paid-amount {
+    display: block;
+    margin-bottom: 5px;
+  }
+  
+  .payment-item .balance {
+    display: block;
+    font-weight: bold;
+  }
+  
+  .balance.positive {
+    color: #28a745;
+  }
+  
+  .balance.negative {
+    color: #dc3545;
+  }
+  
+  /* 共通スタイル */
+  .btn {
+    display: inline-block;
+    font-weight: 400;
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+    border: 1px solid transparent;
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    border-radius: 0.25rem;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  }
+  
+  .btn-primary {
+    color: #fff;
+    background-color: #4a6eb5;
+    border-color: #4a6eb5;
+  }
+  
+  .btn-secondary {
+    color: #fff;
+    background-color: #6c757d;
+    border-color: #6c757d;
+  }
+  
+  .btn-success {
+    color: #fff;
+    background-color: #28a745;
+    border-color: #28a745;
+  }
+  
+  .btn-danger {
+    color: #fff;
+    background-color: #dc3545;
+    border-color: #dc3545;
+  }
+  
+  .btn-outline {
+    color: #6c757d;
+    background-color: transparent;
+    border-color: #6c757d;
+  }
+  
+  .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    border-radius: 0.2rem;
+  }
+  
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  
+  .form-control {
+    display: block;
+    width: 100%;
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #495057;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  }
+  
+  .form-control:focus {
+    color: #495057;
+    background-color: #fff;
+    border-color: #8bb8f4;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(74, 110, 181, 0.25);
+  }
+  
+  .action-buttons {
+    margin-top: 20px;
+  }
+  
+  @media (max-width: 768px) {
+    .form-row {
+      flex-direction: column;
+    }
+    
+    .event-tabs {
+      overflow-x: auto;
+    }
+  }
+</style>
+
+<script>
+  function openTab(evt, tabId) {
+    // すべてのタブコンテンツを非表示にする
+    var tabcontents = document.getElementsByClassName("tab-content");
+    for (var i = 0; i < tabcontents.length; i++) {
+      tabcontents[i].classList.remove("active");
+    }
+    
+    // すべてのタブボタンからactiveクラスを削除
+    var tablinks = document.getElementsByClassName("tab-button");
+    for (var i = 0; i < tablinks.length; i++) {
+      tablinks[i].classList.remove("active");
+    }
+    
+    // クリックされたタブのコンテンツを表示し、ボタンをアクティブにする
+    document.getElementById(tabId).classList.add("active");
+    evt.currentTarget.classList.add("active");
+  }
+  
+  function copyEventUrl() {
+    var copyText = document.getElementById("event-url");
+    copyText.select();
+    copyText.setSelectionRange(0, 99999);
+    document.execCommand("copy");
+    
+    // コピー成功メッセージ（オプション）
+    alert("URLがコピーされました！");
+  }
+</script>

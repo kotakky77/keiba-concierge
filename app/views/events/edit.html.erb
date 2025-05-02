@@ -1,0 +1,113 @@
+<% content_for :title, "競馬幹事コンシェルジュ | #{@event.name}を編集" %>
+
+<h1><%= @event.name %>を編集</h1>
+
+<%= form_with(model: @event, class: "event-form") do |f| %>
+  <% if @event.errors.any? %>
+    <div class="error-message">
+      <h2><%= pluralize(@event.errors.count, "error") %> があります:</h2>
+      <ul>
+        <% @event.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="form-group">
+    <%= f.label :name, 'イベント名' %>
+    <%= f.text_field :name, required: true, class: "form-control" %>
+  </div>
+
+  <div class="form-group">
+    <%= f.label :location, '開催場所' %>
+    <%= f.text_field :location, class: "form-control" %>
+  </div>
+  
+  <div class="form-group">
+    <%= f.label :status, 'イベント状態' %>
+    <%= f.select :status, ['計画中', '日程確定', '開催済み', '精算完了'], { include_blank: '選択してください' }, { class: "form-control" } %>
+  </div>
+
+  <div class="form-group">
+    <%= f.label :memo, 'メモ・補足情報' %>
+    <%= f.text_area :memo, rows: 4, class: "form-control" %>
+  </div>
+
+  <% if @event.confirmed_date.present? %>
+    <div class="form-group">
+      <%= f.label :confirmed_date, '確定日時' %>
+      <%= f.datetime_local_field :confirmed_date, class: "form-control" %>
+    </div>
+  <% end %>
+
+  <div class="form-actions">
+    <%= f.submit '更新する', class: "btn btn-primary" %>
+    <%= link_to 'キャンセル', event_path(@event), class: "btn btn-text" %>
+  </div>
+<% end %>
+
+<style>
+  .event-form {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .form-group {
+    margin-bottom: 20px;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+  }
+  
+  .form-control {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+  }
+  
+  .form-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+  }
+  
+  .btn {
+    display: inline-block;
+    font-weight: 400;
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+    border: 1px solid transparent;
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    border-radius: 0.25rem;
+  }
+  
+  .btn-primary {
+    color: #fff;
+    background-color: #4a6eb5;
+    border-color: #4a6eb5;
+  }
+  
+  .btn-text {
+    background: none;
+    color: #4a6eb5;
+    text-decoration: underline;
+    padding: 10px 0;
+  }
+  
+  .error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+  }
+</style>
