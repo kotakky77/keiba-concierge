@@ -1,6 +1,6 @@
 <% content_for :title, "競馬幹事コンシェルジュ | 新規イベント作成" %>
 
-<h1>新規競馬イベント作成</h1>
+<h1>新規イベント作成</h1>
 
 <%= form_with(model: @event, class: "event-form") do |f| %>
   <% if @event.errors.any? %>
@@ -16,22 +16,16 @@
 
   <div class="form-group">
     <%= f.label :name, 'イベント名' %>
-    <%= f.text_field :name, placeholder: '例: 日本ダービー観戦会', required: true, class: "form-control" %>
+    <%= f.text_field :name, placeholder: '例: ◯◯年 ◯◯大学 同期会', required: true, class: "form-control" %>
   </div>
 
   <div class="form-group">
-    <%= f.label :location, '開催場所' %>
-    <%= f.text_field :location, placeholder: '例: 東京競馬場', class: "form-control" %>
-  </div>
-
-  <div class="form-group">
-    <%= f.label :memo, 'メモ・補足情報' %>
+    <%= f.label :memo, 'コメント' %>
     <%= f.text_area :memo, rows: 4, placeholder: 'イベントについての補足情報があれば記入してください', class: "form-control" %>
   </div>
 
   <div class="form-section">
     <h3>候補日</h3>
-    <p class="help-text">複数の候補日を設定できます（後から追加も可能）</p>
     
     <div id="selected-dates-container" class="selected-dates-box">
       <!-- ここに選択済みの候補日が表示される -->
@@ -42,11 +36,6 @@
         <input type="date" name="date_options[]" class="form-control">
         <button type="button" class="remove-date" style="display:none;">削除</button>
       </div>
-    </div>
-    
-    <div class="date-actions">
-      <button type="button" id="add-date" class="btn btn-secondary">候補日を追加</button>
-      <%= link_to "レーシングカレンダーを確認", racing_calendar_path(from: 'event_new'), target: "_blank", class: "calendar-link" %>
     </div>
   </div>
 
@@ -195,27 +184,22 @@ document.addEventListener('DOMContentLoaded', function() {
   if (dateOptionsParam) {
     try {
       const selectedDates = JSON.parse(decodeURIComponent(dateOptionsParam));
-      
       if (selectedDates.length > 0) {
         selectedDatesContainer.style.display = 'block';
-        
-        // 最初のinputフィールドを非表示にする（選択済みの日付がある場合）
         const firstDateOption = document.querySelector('.date-option');
         if (firstDateOption) {
           firstDateOption.style.display = 'none';
         }
-        
         // 選択された各日付をフォームに追加
-        selectedDates.forEach(function(dateStr) {
-          // hidden inputを作成して値を保持
+        selectedDates.forEach(function(displayText) {
+          // hidden inputを作成して値を保持（displayTextをそのまま格納）
           const hiddenInput = document.createElement('input');
           hiddenInput.type = 'hidden';
           hiddenInput.name = 'date_options[]';
-          hiddenInput.value = dateStr;
+          hiddenInput.value = displayText;
           dateOptions.appendChild(hiddenInput);
-          
           // 表示用の日付項目を作成
-          createSelectedDateItem(dateStr, hiddenInput);
+          createSelectedDateItem(displayText, hiddenInput);
         });
       }
     } catch (e) {
@@ -224,29 +208,20 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   // 選択された日付項目を作成する関数
-  function createSelectedDateItem(dateStr, relatedInput) {
-    const dateObj = new Date(dateStr);
-    const formattedDate = `${dateObj.getFullYear()}年${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
-    const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][dateObj.getDay()];
-    
+  function createSelectedDateItem(displayText, relatedInput) {
     const dateItem = document.createElement('div');
     dateItem.className = 'selected-date-item';
-    
     const dateText = document.createElement('div');
-    dateText.textContent = `${formattedDate}(${dayOfWeek})`;
-    
+    dateText.textContent = displayText;
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'remove-date';
     removeBtn.textContent = '削除';
     removeBtn.addEventListener('click', function() {
-      // hidden inputと表示項目を削除
       if (relatedInput) {
         relatedInput.parentNode.removeChild(relatedInput);
       }
       dateItem.parentNode.removeChild(dateItem);
-      
-      // 選択された日付がなくなった場合、コンテナを非表示にして通常のinputを表示
       if (selectedDatesContainer.children.length === 0) {
         selectedDatesContainer.style.display = 'none';
         const firstDateOption = document.querySelector('.date-option');
@@ -255,7 +230,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
     });
-    
     dateItem.appendChild(dateText);
     dateItem.appendChild(removeBtn);
     selectedDatesContainer.appendChild(dateItem);

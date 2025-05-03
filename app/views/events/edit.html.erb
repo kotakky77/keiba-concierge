@@ -2,6 +2,10 @@
 
 <h1><%= @event.name %>を編集</h1>
 
+<div class="tabs">
+  <button class="tab-button active" data-tab="basic-info">基本情報</button>
+</div>
+
 <%= form_with(model: @event, class: "event-form") do |f| %>
   <% if @event.errors.any? %>
     <div class="error-message">
@@ -14,32 +18,36 @@
     </div>
   <% end %>
 
-  <div class="form-group">
-    <%= f.label :name, 'イベント名' %>
-    <%= f.text_field :name, required: true, class: "form-control" %>
-  </div>
-
-  <div class="form-group">
-    <%= f.label :location, '開催場所' %>
-    <%= f.text_field :location, class: "form-control" %>
-  </div>
-  
-  <div class="form-group">
-    <%= f.label :status, 'イベント状態' %>
-    <%= f.select :status, ['計画中', '日程確定', '開催済み', '精算完了'], { include_blank: '選択してください' }, { class: "form-control" } %>
-  </div>
-
-  <div class="form-group">
-    <%= f.label :memo, 'メモ・補足情報' %>
-    <%= f.text_area :memo, rows: 4, class: "form-control" %>
-  </div>
-
-  <% if @event.confirmed_date.present? %>
+  <div class="tab-content active" id="basic-info-content">
+    <h2>基本情報</h2>
+    
     <div class="form-group">
-      <%= f.label :confirmed_date, '確定日時' %>
-      <%= f.datetime_local_field :confirmed_date, class: "form-control" %>
+      <%= f.label :name, 'イベント名' %>
+      <%= f.text_field :name, required: true, class: "form-control" %>
     </div>
-  <% end %>
+
+    <div class="form-group">
+      <%= f.label :memo, 'コメント' %>
+      <%= f.text_area :memo, rows: 4, class: "form-control" %>
+    </div>
+    
+    <div class="form-group">
+      <%= f.label :location, '開催場所' %>
+      <%= f.text_field :location, class: "form-control" %>
+    </div>
+    
+    <div class="form-group">
+      <%= f.label :status, 'イベント状態' %>
+      <%= f.select :status, ['計画中', '日程確定', '開催済み', '精算完了'], { include_blank: '選択してください' }, { class: "form-control" } %>
+    </div>
+
+    <% if @event.confirmed_date.present? %>
+      <div class="form-group">
+        <%= f.label :confirmed_date, '確定日時' %>
+        <%= f.datetime_local_field :confirmed_date, class: "form-control" %>
+      </div>
+    <% end %>
+  </div>
 
   <div class="form-actions">
     <%= f.submit '更新する', class: "btn btn-primary" %>
@@ -109,5 +117,35 @@
     padding: 15px;
     border-radius: 4px;
     margin-bottom: 20px;
+  }
+  
+  /* タブのスタイル */
+  .tabs {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .tab-button {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-weight: bold;
+    color: #4a6eb5;
+    border-bottom: 2px solid #4a6eb5;
+  }
+  
+  .tab-content {
+    display: block;
+    padding-top: 10px;
+  }
+  
+  .tab-content h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    color: #4a6eb5;
   }
 </style>
