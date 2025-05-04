@@ -28,7 +28,10 @@
 
     <div class="form-group">
       <%= f.label :memo, 'コメント' %>
-      <%= f.text_area :memo, rows: 4, class: "form-control" %>
+      <% if @event.memo.blank? %>
+        <p class="comment-placeholder">コメントなし</p>
+      <% end %>
+      <%= f.text_area :memo, rows: 4, class: "form-control", placeholder: 'コメントを入力してください' %>
     </div>
     
     <div class="form-group">
@@ -77,6 +80,15 @@
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 16px;
+  }
+  
+  .comment-placeholder {
+    color: #6c757d;
+    font-style: italic;
+    margin-bottom: 8px;
+    background-color: #f8f9fa;
+    padding: 8px;
+    border-radius: 4px;
   }
   
   .form-actions {

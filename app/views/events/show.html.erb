@@ -48,12 +48,16 @@
       </div>
     </div>
     
-    <% if @event.memo.present? %>
-      <div class="memo-box">
-        <h3>メモ・補足情報</h3>
-        <div class="memo-content"><%= simple_format(@event.memo) %></div>
+    <div class="memo-box">
+      <h3>メモ・補足情報</h3>
+      <div class="memo-content">
+        <% if @event.memo.present? %>
+          <%= simple_format(@event.memo) %>
+        <% else %>
+          <p class="memo-empty">コメントなし</p>
+        <% end %>
       </div>
-    <% end %>
+    </div>
     
     <div class="action-buttons">
       <%= link_to "編集する", edit_event_path(@event), class: "btn btn-secondary" %>
