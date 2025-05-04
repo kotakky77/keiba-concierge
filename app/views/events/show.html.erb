@@ -262,7 +262,19 @@
     </div>
   <% else %>
     <div class="no-options-message">
-      <p>候補日がまだ登録されていません。新規イベント作成時に設定した候補日情報が表示されます。</p>
+      <p>候補日がまだ登録されていません。下のフォームから候補日を追加してください。</p>
+      
+      <!-- 候補日追加フォーム -->
+      <div class="date-option-form">
+        <h3>候補日の追加</h3>
+        <%= form_with(model: @new_date_option, url: event_date_options_path(@event), local: true) do |f| %>
+          <div class="form-group">
+            <%= f.label :date, '候補日' %>
+            <%= f.date_field :date, required: true, class: 'form-control' %>
+          </div>
+          <%= f.submit '候補日を追加', class: 'btn btn-primary' %>
+        <% end %>
+      </div>
     </div>
   <% end %>
   

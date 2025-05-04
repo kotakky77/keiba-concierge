@@ -174,7 +174,6 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const dateOptions = document.getElementById('date-options');
-  const addDateBtn = document.getElementById('add-date');
   const selectedDatesContainer = document.getElementById('selected-dates-container');
   
   // URLから選択された候補日を取得
@@ -234,23 +233,6 @@ document.addEventListener('DOMContentLoaded', function() {
     dateItem.appendChild(removeBtn);
     selectedDatesContainer.appendChild(dateItem);
   }
-  
-  // 候補日追加ボタンのイベントリスナー
-  addDateBtn.addEventListener('click', function() {
-    const newOption = document.createElement('div');
-    newOption.className = 'date-option';
-    newOption.innerHTML = `
-      <input type="date" name="date_options[]" class="form-control">
-      <button type="button" class="remove-date">削除</button>
-    `;
-    dateOptions.appendChild(newOption);
-    
-    // 追加した削除ボタンにイベントリスナーを設定
-    const removeBtn = newOption.querySelector('.remove-date');
-    removeBtn.addEventListener('click', function() {
-      dateOptions.removeChild(newOption);
-    });
-  });
   
   // フォームの最初の削除ボタンは表示しない（1つ目はデフォルトで必ず表示）
   const firstRemoveBtn = dateOptions.querySelector('.remove-date');

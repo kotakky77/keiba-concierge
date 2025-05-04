@@ -41,8 +41,42 @@ class EventsController < ApplicationController
     if @event.save
       # イベント作成成功時、日程候補もあれば保存
       if params[:date_options].present?
+        date_options_created = false
+        
         params[:date_options].each do |date_option|
-          @event.date_options.create(date: date_option) if date_option.present?
+          if date_option.present?
+            begin
+              # 日付フォーマットを柔軟に解釈する
+              date_str = date_option.to_s.strip
+              
+              # すでに日付オブジェクトの場合はそのまま使用
+              if date_option.is_a?(Date) || date_option.is_a?(Time) || date_option.is_a?(DateTime)
+                date_value = date_option.to_date
+              else
+                # "2025年5月1日" や "2025/05/01" のような形式も受け入れる
+                # 年月日の区切り文字を統一
+                date_str = date_str.gsub(/[年月]/, '/').gsub(/日/, '')
+                
+                # パース処理
+                date_value = Date.parse(date_str)
+              end
+              
+              # 候補日を作成
+              @event.date_options.create(date: date_value)
+              date_options_created = true
+              
+              # デバッグ用ログ
+              Rails.logger.info("候補日を作成しました: #{date_value}, イベントID: #{@event.id}")
+            rescue ArgumentError => e
+              # 日付形式が不正な場合はログに記録するが、処理は継続
+              Rails.logger.error("候補日パースエラー: #{e.message}, 値: #{date_option}")
+            end
+          end
+        end
+        
+        # 候補日が一つも作成できなかった場合は警告
+        if !date_options_created
+          Rails.logger.warn("候補日が一つも作成されませんでした。イベントID: #{@event.id}, params[:date_options]: #{params[:date_options].inspect}")
         end
       end
       
@@ -105,6 +139,7 @@ class EventsController < ApplicationController
     # URLハッシュでアクセスされた場合はurl_hashからイベントを検索
     if params[:url_hash].present?
       @event = Event.find_by(url_hash: params[:url_hash])
+      Rails.logger.debug("URLハッシュでイベントを検索: #{params[:url_hash]}, 結果: #{@event.inspect}")
     else
       # 通常のID指定の場合
       @event = Event.find(params[:id])
