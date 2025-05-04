@@ -1,5 +1,5 @@
 class EventsController < ApplicationController
-  before_action :set_event, only: [:show, :edit, :update]
+  before_action :set_event, only: [:show, :edit, :update, :destroy]
 
   def index
     @events = Event.order(created_at: :desc)
@@ -21,12 +21,6 @@ class EventsController < ApplicationController
   end
 
   def show
-    # URLハッシュでアクセスされた場合の処理
-    @event = Event.find_by(url_hash: params[:url_hash]) if params[:url_hash].present?
-    
-    # イベントが見つからない場合はリダイレクト
-    redirect_to root_path, alert: 'イベントが見つかりませんでした。' and return unless @event
-
     @date_options = @event.date_options.order(:date)
     @participants = @event.participants
     @items = @event.items
@@ -47,8 +41,42 @@ class EventsController < ApplicationController
     if @event.save
       # イベント作成成功時、日程候補もあれば保存
       if params[:date_options].present?
+        date_options_created = false
+        
         params[:date_options].each do |date_option|
-          @event.date_options.create(date: date_option) if date_option.present?
+          if date_option.present?
+            begin
+              # 日付フォーマットを柔軟に解釈する
+              date_str = date_option.to_s.strip
+              
+              # すでに日付オブジェクトの場合はそのまま使用
+              if date_option.is_a?(Date) || date_option.is_a?(Time) || date_option.is_a?(DateTime)
+                date_value = date_option.to_date
+              else
+                # "2025年5月1日" や "2025/05/01" のような形式も受け入れる
+                # 年月日の区切り文字を統一
+                date_str = date_str.gsub(/[年月]/, '/').gsub(/日/, '')
+                
+                # パース処理
+                date_value = Date.parse(date_str)
+              end
+              
+              # 候補日を作成
+              @event.date_options.create(date: date_value)
+              date_options_created = true
+              
+              # デバッグ用ログ
+              Rails.logger.info("候補日を作成しました: #{date_value}, イベントID: #{@event.id}")
+            rescue ArgumentError => e
+              # 日付形式が不正な場合はログに記録するが、処理は継続
+              Rails.logger.error("候補日パースエラー: #{e.message}, 値: #{date_option}")
+            end
+          end
+        end
+        
+        # 候補日が一つも作成できなかった場合は警告
+        if !date_options_created
+          Rails.logger.warn("候補日が一つも作成されませんでした。イベントID: #{@event.id}, params[:date_options]: #{params[:date_options].inspect}")
         end
       end
       
@@ -62,17 +90,63 @@ class EventsController < ApplicationController
   end
 
   def update
+    # 日程確定処理の特別なハンドリング
+    if params[:event][:confirmed_date].present?
+      # 日付文字列または日付オブジェクトを適切に処理
+      if params[:event][:confirmed_date].is_a?(String) && !params[:event][:confirmed_date].empty?
+        begin
+          # 文字列が日付のみの場合、時刻を追加
+          parsed_date = Date.parse(params[:event][:confirmed_date])
+          params[:event][:confirmed_date] = parsed_date.to_datetime.change(hour: 12) # デフォルトで12:00に設定
+        rescue ArgumentError => e
+          # 日付パースに失敗した場合
+          Rails.logger.error("日程確定エラー: #{e.message}")
+          return redirect_to event_path(@event), alert: '日付形式が不正です'
+        end
+      end
+      
+      # 日程確定時にイベントのステータスを更新
+      params[:event][:status] = '開催日決定' unless params[:event][:status].present?
+    end
+    
     if @event.update(event_params)
-      redirect_to event_path(@event), notice: 'イベント情報が更新されました。'
+      # 正常に更新された場合
+      message = if params[:event][:confirmed_date].nil? && @event.confirmed_date_previously_changed?
+                  # 確定解除の場合
+                  '日程確定が解除されました。'
+                elsif params[:event][:confirmed_date].present? && @event.confirmed_date_previously_changed?
+                  # 新しく確定した場合
+                  '開催日時が確定されました！'
+                else
+                  # その他の更新
+                  'イベント情報が更新されました。'
+                end
+                
+      redirect_to event_path(@event), notice: message
     else
       render :edit
     end
   end
 
+  def destroy
+    @event.destroy
+    redirect_to events_path(show_all: true), notice: 'イベントが削除されました。'
+  end
+
   private
 
   def set_event
-    @event = Event.find(params[:id])
+    # URLハッシュでアクセスされた場合はurl_hashからイベントを検索
+    if params[:url_hash].present?
+      @event = Event.find_by(url_hash: params[:url_hash])
+      Rails.logger.debug("URLハッシュでイベントを検索: #{params[:url_hash]}, 結果: #{@event.inspect}")
+    else
+      # 通常のID指定の場合
+      @event = Event.find(params[:id])
+    end
+    
+    # イベントが見つからない場合はリダイレクト
+    redirect_to root_path, alert: 'イベントが見つかりませんでした。' unless @event
   rescue ActiveRecord::RecordNotFound
     redirect_to root_path, alert: 'イベントが見つかりませんでした。'
   end

@@ -48,12 +48,16 @@
       </div>
     </div>
     
-    <% if @event.memo.present? %>
-      <div class="memo-box">
-        <h3>メモ・補足情報</h3>
-        <div class="memo-content"><%= simple_format(@event.memo) %></div>
+    <div class="memo-box">
+      <h3>メモ・補足情報</h3>
+      <div class="memo-content">
+        <% if @event.memo.present? %>
+          <%= simple_format(@event.memo) %>
+        <% else %>
+          <p class="memo-empty">コメントなし</p>
+        <% end %>
       </div>
-    <% end %>
+    </div>
     
     <div class="action-buttons">
       <%= link_to "編集する", edit_event_path(@event), class: "btn btn-secondary" %>
@@ -81,17 +85,21 @@
 <div id="tab-schedule" class="tab-content">
   <h2>日程調整</h2>
   
-  <!-- 日程候補の追加フォーム -->
-  <div class="date-option-form">
-    <h3>候補日の追加</h3>
-    <%= form_with(model: @new_date_option, url: event_date_options_path(@event), local: true) do |f| %>
-      <div class="form-group">
-        <%= f.label :date, '候補日' %>
-        <%= f.date_field :date, required: true, class: 'form-control' %>
+  <% if @event.confirmed_date.present? %>
+    <div class="confirmed-date-box">
+      <h3>確定日程</h3>
+      <div class="confirmed-date">
+        <i class="fas fa-calendar-check"></i>
+        <%= @event.confirmed_date.strftime("%Y年%m月%d日") %>
       </div>
-      <%= f.submit '候補日を追加', class: 'btn btn-primary' %>
-    <% end %>
-  </div>
+      <% if @event.admin_password.present? %>
+        <%= form_with(url: event_path(@event), method: :patch, class: 'cancel-date-form') do |f| %>
+          <%= f.hidden_field :event, value: { confirmed_date: nil } %>
+          <%= f.submit '日程確定をキャンセル', class: 'btn btn-outline-secondary btn-sm', data: { confirm: '日程確定をキャンセルしますか？' } %>
+        <% end %>
+      <% end %>
+    </div>
+  <% end %>
   
   <!-- 候補日と参加状況の表示 -->
   <% if @date_options.any? %>
@@ -101,48 +109,172 @@
       <table class="date-options-table">
         <thead>
           <tr>
-            <th>候補日時</th>
-            <% @participants.each do |participant| %>
-              <th><%= participant.name %></th>
+            <th>候補日</th>
+            <th>参加可能</th>
+            <th>微妙/未定</th>
+            <th>参加不可</th>
+            <th>未回答</th>
+            <% if @event.confirmed_date.nil? %>
+              <th>アクション</th>
             <% end %>
-            <th>アクション</th>
           </tr>
         </thead>
         <tbody>
           <% @date_options.each do |date_option| %>
-            <tr>
-              <td class="date-cell"><%= date_option.date.strftime("%Y/%m/%d") %></td>
+            <tr class="<%= 'confirmed' if @event.confirmed_date&.to_date == date_option.date %>">
+              <td class="date-cell">
+                <%= date_option.date.strftime("%Y/%m/%d") %>
+                <% if @event.confirmed_date&.to_date == date_option.date %>
+                  <span class="badge badge-success">確定!</span>
+                <% end %>
+              </td>
               
-              <% @participants.each do |participant| %>
-                <% attendance = Attendance.find_by(participant: participant, date_option: date_option) %>
-                <td class="attendance-cell">
-                  <% if attendance %>
-                    <span class="status-<%= attendance.status %>">
-                      <%= { 'yes' => '○', 'maybe' => '△', 'no' => '×' }[attendance.status] %>
-                    </span>
-                    <% if attendance.comment.present? %>
-                      <span class="comment-icon" title="<%= attendance.comment %>">💬</span>
-                    <% end %>
-                  <% else %>
-                    -
+              <% 
+                yes_count = date_option.attendances.where(status: 'yes').count
+                maybe_count = date_option.attendances.where(status: 'maybe').count
+                no_count = date_option.attendances.where(status: 'no').count
+                no_response_count = @participants.size - (yes_count + maybe_count + no_count)
+              %>
+              
+              <td class="count-cell yes-cell">
+                <div class="count-box">
+                  <span class="count"><%= yes_count %></span>
+                  <% if yes_count > 0 %>
+                    <div class="tooltip-container">
+                      <span class="tooltip-trigger"><i class="fas fa-info-circle"></i></span>
+                      <div class="tooltip-content">
+                        <% date_option.attendances.where(status: 'yes').includes(:participant).each do |att| %>
+                          <div class="person">
+                            <%= att.participant.name %>
+                            <% if att.comment.present? %>
+                              <div class="comment"><%= att.comment %></div>
+                            <% end %>
+                          </div>
+                        <% end %>
+                      </div>
+                    </div>
                   <% end %>
+                </div>
+              </td>
+              
+              <td class="count-cell maybe-cell">
+                <div class="count-box">
+                  <span class="count"><%= maybe_count %></span>
+                  <% if maybe_count > 0 %>
+                    <div class="tooltip-container">
+                      <span class="tooltip-trigger"><i class="fas fa-info-circle"></i></span>
+                      <div class="tooltip-content">
+                        <% date_option.attendances.where(status: 'maybe').includes(:participant).each do |att| %>
+                          <div class="person">
+                            <%= att.participant.name %>
+                            <% if att.comment.present? %>
+                              <div class="comment"><%= att.comment %></div>
+                            <% end %>
+                          </div>
+                        <% end %>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              </td>
+              
+              <td class="count-cell no-cell">
+                <div class="count-box">
+                  <span class="count"><%= no_count %></span>
+                  <% if no_count > 0 %>
+                    <div class="tooltip-container">
+                      <span class="tooltip-trigger"><i class="fas fa-info-circle"></i></span>
+                      <div class="tooltip-content">
+                        <% date_option.attendances.where(status: 'no').includes(:participant).each do |att| %>
+                          <div class="person">
+                            <%= att.participant.name %>
+                            <% if att.comment.present? %>
+                              <div class="comment"><%= att.comment %></div>
+                            <% end %>
+                          </div>
+                        <% end %>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              </td>
+              
+              <td class="count-cell no-response-cell">
+                <span class="count"><%= no_response_count %></span>
+              </td>
+              
+              <% if @event.confirmed_date.nil? %>
+                <td class="action-cell">
+                  <%= button_to '日程を確定', event_path(@event), method: :patch, 
+                      params: { event: { confirmed_date: date_option.date } }, 
+                      class: 'btn btn-sm btn-success' %>
+                  <%= button_to '削除', event_date_option_path(@event, date_option), 
+                      method: :delete, 
+                      class: 'btn btn-sm btn-danger', 
+                      data: { confirm: '本当に削除しますか？この候補日の出欠情報も削除されます' } %>
                 </td>
               <% end %>
-              
-              <td class="action-cell">
-                <% if @event.confirmed_date.nil? %>
-                  <%= button_to '日程を確定', event_path(@event), method: :patch, params: { event: { confirmed_date: date_option.date } }, class: 'btn btn-sm btn-success' %>
-                <% end %>
-                <%= button_to '削除', event_date_option_path(@event, date_option), method: :delete, class: 'btn btn-sm btn-danger', data: { confirm: '本当に削除しますか？' } %>
-              </td>
             </tr>
           <% end %>
         </tbody>
       </table>
+      
+      <div class="detailed-status-view">
+        <h3>参加者別出欠状況</h3>
+        <table class="attendance-details-table">
+          <thead>
+            <tr>
+              <th>参加者</th>
+              <% @date_options.each do |date_option| %>
+                <th><%= date_option.date.strftime("%-m/%-d") %></th>
+              <% end %>
+            </tr>
+          </thead>
+          <tbody>
+            <% @participants.each do |participant| %>
+              <tr>
+                <td class="participant-name"><%= participant.name %></td>
+                <% @date_options.each do |date_option| %>
+                  <% attendance = Attendance.find_by(participant: participant, date_option: date_option) %>
+                  <td class="attendance-status-cell">
+                    <% if attendance %>
+                      <span class="status-<%= attendance.status %>">
+                        <%= { 'yes' => '◯', 'maybe' => '△', 'no' => '✕' }[attendance.status] %>
+                      </span>
+                      <% if attendance.comment.present? %>
+                        <div class="tooltip-container">
+                          <span class="comment-icon">💬</span>
+                          <div class="tooltip-content">
+                            <div class="comment"><%= attendance.comment %></div>
+                          </div>
+                        </div>
+                      <% end %>
+                    <% else %>
+                      <span class="status-none">-</span>
+                    <% end %>
+                  </td>
+                <% end %>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
     </div>
   <% else %>
     <div class="no-options-message">
-      <p>候補日がまだ登録されていません。上のフォームから候補日を追加してください。</p>
+      <p>候補日がまだ登録されていません。下のフォームから候補日を追加してください。</p>
+      
+      <!-- 候補日追加フォーム -->
+      <div class="date-option-form">
+        <h3>候補日の追加</h3>
+        <%= form_with(model: @new_date_option, url: event_date_options_path(@event), local: true) do |f| %>
+          <div class="form-group">
+            <%= f.label :date, '候補日' %>
+            <%= f.date_field :date, required: true, class: 'form-control' %>
+          </div>
+          <%= f.submit '候補日を追加', class: 'btn btn-primary' %>
+        <% end %>
+      </div>
     </div>
   <% end %>
   
@@ -151,14 +283,15 @@
     <h3>出欠を回答する</h3>
     
     <% if @date_options.any? %>
-      <%= form_with(scope: :attendance_form, url: event_participants_path(@event), local: true, class: 'response-form') do |f| %>
+      <!-- 新規参加者用フォーム -->
+      <%= form_with(url: event_participants_path(@event), local: true, class: 'response-form') do |f| %>
         <div class="form-group">
           <%= f.label :name, 'お名前' %>
           <%= f.text_field :name, required: true, class: 'form-control' %>
         </div>
         
         <div class="form-group">
-          <%= f.label :comment, 'コメント（任意）' %>
+          <%= f.label :comment, '全体コメント（任意）' %>
           <%= f.text_area :comment, class: 'form-control', rows: 2 %>
         </div>
         
@@ -167,17 +300,21 @@
           
           <% @date_options.each do |date_option| %>
             <div class="date-response-item">
-              <p class="date-label"><%= date_option.date.strftime("%Y/%m/%d") %></p>
+              <p class="date-label"><%= date_option.date.strftime("%Y年%m月%d日") %></p>
               
               <div class="response-options">
-                <%= f.radio_button "date_option_ids[#{date_option.id}]", 'yes', id: "yes_#{date_option.id}", required: true %>
+                <%= f.radio_button "attendance_form[date_option_ids][#{date_option.id}]", 'yes', id: "yes_#{date_option.id}", required: true %>
                 <%= f.label "yes_#{date_option.id}", '○ 参加可能', class: 'radio-label yes-label' %>
                 
-                <%= f.radio_button "date_option_ids[#{date_option.id}]", 'maybe', id: "maybe_#{date_option.id}" %>
+                <%= f.radio_button "attendance_form[date_option_ids][#{date_option.id}]", 'maybe', id: "maybe_#{date_option.id}" %>
                 <%= f.label "maybe_#{date_option.id}", '△ 微妙/未定', class: 'radio-label maybe-label' %>
                 
-                <%= f.radio_button "date_option_ids[#{date_option.id}]", 'no', id: "no_#{date_option.id}" %>
+                <%= f.radio_button "attendance_form[date_option_ids][#{date_option.id}]", 'no', id: "no_#{date_option.id}" %>
                 <%= f.label "no_#{date_option.id}", '× 参加不可', class: 'radio-label no-label' %>
+              </div>
+              
+              <div class="date-comment-field">
+                <%= f.text_field "attendance_form[date_option_comments][#{date_option.id}]", placeholder: 'この日程についてのコメント（任意）', class: 'form-control date-comment-input' %>
               </div>
             </div>
           <% end %>
@@ -185,6 +322,117 @@
         
         <%= f.submit '回答を送信', class: 'btn btn-primary' %>
       <% end %>
+      
+      <!-- 既存参加者用の回答更新フォーム -->
+      <div class="existing-participant-form">
+        <h3>既存の回答を更新する</h3>
+        
+        <% if @participants.any? %>
+          <div class="select-participant-form">
+            <label for="participant-selector">参加者を選択</label>
+            <select id="participant-selector" class="form-control">
+              <option value="">-- 選択してください --</option>
+              <% @participants.each do |participant| %>
+                <option value="<%= participant.id %>"><%= participant.name %></option>
+              <% end %>
+            </select>
+            <button onclick="showUpdateForm()" class="btn btn-secondary mt-2">選択</button>
+          </div>
+          
+          <div id="update-attendance-form" style="display: none;">
+            <%= form_with(url: update_attendance_event_participants_path(@event), method: :post, local: true, class: 'update-response-form') do |f| %>
+              <%= f.hidden_field :participant_id, id: 'selected-participant-id' %>
+              
+              <div class="form-group">
+                <label>参加者名: <span id="selected-participant-name"></span></label>
+              </div>
+              
+              <div class="form-group">
+                <%= f.label :comment, '全体コメント（任意）' %>
+                <%= f.text_area :comment, class: 'form-control', rows: 2, id: 'update-comment' %>
+              </div>
+              
+              <div class="date-responses" id="update-date-responses">
+                <h4>各候補日への回答</h4>
+                
+                <% @date_options.each do |date_option| %>
+                  <div class="date-response-item" id="update-response-<%= date_option.id %>">
+                    <p class="date-label"><%= date_option.date.strftime("%Y年%m月%d日") %></p>
+                    
+                    <div class="response-options">
+                      <%= f.radio_button "attendance_form[date_option_ids][#{date_option.id}]", 'yes', id: "update_yes_#{date_option.id}" %>
+                      <%= f.label "update_yes_#{date_option.id}", '○ 参加可能', class: 'radio-label yes-label' %>
+                      
+                      <%= f.radio_button "attendance_form[date_option_ids][#{date_option.id}]", 'maybe', id: "update_maybe_#{date_option.id}" %>
+                      <%= f.label "update_maybe_#{date_option.id}", '△ 微妙/未定', class: 'radio-label maybe-label' %>
+                      
+                      <%= f.radio_button "attendance_form[date_option_ids][#{date_option.id}]", 'no', id: "update_no_#{date_option.id}" %>
+                      <%= f.label "update_no_#{date_option.id}", '× 参加不可', class: 'radio-label no-label' %>
+                    </div>
+                    
+                    <div class="date-comment-field">
+                      <%= f.text_field "attendance_form[date_option_comments][#{date_option.id}]", 
+                          placeholder: 'この日程についてのコメント（任意）', 
+                          class: 'form-control date-comment-input',
+                          id: "update_comment_#{date_option.id}" %>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+              
+              <%= f.submit '回答を更新', class: 'btn btn-primary' %>
+            <% end %>
+          </div>
+        <% else %>
+          <p>まだ参加者がいません。上のフォームから最初の回答を送信してください。</p>
+        <% end %>
+      </div>
+      
+      <script>
+        // 参加者の過去の回答を取得して表示する
+        function showUpdateForm() {
+          const participantId = document.getElementById('participant-selector').value;
+          if (!participantId) return;
+          
+          document.getElementById('selected-participant-id').value = participantId;
+          
+          // 選択された参加者の名前を表示
+          const participantSelect = document.getElementById('participant-selector');
+          const selectedOption = participantSelect.options[participantSelect.selectedIndex];
+          document.getElementById('selected-participant-name').textContent = selectedOption.text;
+          
+          // 過去の回答データを取得するAJAXリクエスト
+          fetch(`/events/<%= @event.id %>/participants/${participantId}/attendances`)
+            .then(response => response.json())
+            .then(data => {
+              // 回答フォームを表示
+              document.getElementById('update-attendance-form').style.display = 'block';
+              
+              // 全体コメントはないので初期化
+              document.getElementById('update-comment').value = '';
+              
+              // 各候補日の回答状態を設定
+              if (data.attendances) {
+                data.attendances.forEach(attendance => {
+                  // ラジオボタンを選択
+                  const radioId = `update_${attendance.status}_${attendance.date_option_id}`;
+                  const radio = document.getElementById(radioId);
+                  if (radio) radio.checked = true;
+                  
+                  // コメント欄を設定
+                  const commentField = document.getElementById(`update_comment_${attendance.date_option_id}`);
+                  if (commentField && attendance.comment) {
+                    commentField.value = attendance.comment;
+                  }
+                });
+              }
+            })
+            .catch(error => {
+              console.error('回答データの取得に失敗しました:', error);
+              alert('過去の回答データの取得に失敗しました。');
+            });
+        }
+      </script>
     <% else %>
       <p>候補日が登録されると、ここに出欠回答フォームが表示されます。</p>
     <% end %>
@@ -537,6 +785,12 @@
     width: 100%;
     border-collapse: collapse;
     margin-top: 15px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+  
+  .date-options-table tr.confirmed {
+    background-color: #e8f4fc;
   }
   
   .date-options-table th, .date-options-table td {
@@ -587,6 +841,8 @@
     padding: 10px;
     background-color: #f8f9fa;
     border-radius: 5px;
+    border-left: 3px solid #4a6eb5;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   }
   
   .date-label {
@@ -615,6 +871,245 @@
   
   .no-label {
     color: #dc3545;
+  }
+  
+  .confirmed-date-box {
+    background-color: #e8f4fc;
+    border-left: 4px solid #4a6eb5;
+    padding: 15px;
+    margin-bottom: 30px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+  
+  .confirmed-date {
+    font-size: 24px;
+    font-weight: bold;
+    color: #4a6eb5;
+    margin: 10px 0;
+  }
+  
+  .confirmed-date i {
+    margin-right: 10px;
+  }
+  
+  .cancel-date-form {
+    margin-top: 10px;
+  }
+  
+  .count-cell {
+    text-align: center;
+    position: relative;
+    width: 80px;
+  }
+  
+  .count-box {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .count {
+    font-size: 18px;
+    font-weight: bold;
+    display: inline-block;
+    min-width: 30px;
+  }
+  
+  .yes-cell .count {
+    color: #28a745;
+  }
+  
+  .maybe-cell .count {
+    color: #ffc107;
+  }
+  
+  .no-cell .count {
+    color: #dc3545;
+  }
+  
+  .no-response-cell .count {
+    color: #6c757d;
+  }
+  
+  .tooltip-container {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .tooltip-trigger {
+    cursor: pointer;
+    color: #6c757d;
+    margin-left: 5px;
+  }
+  
+  .tooltip-content {
+    display: none;
+    position: absolute;
+    z-index: 100;
+    background-color: white;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 10px;
+    min-width: 200px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    left: 50%;
+    transform: translateX(-50%);
+    top: 100%;
+    margin-top: 5px;
+  }
+  
+  .tooltip-container:hover .tooltip-content {
+    display: block;
+  }
+  
+  .person {
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .person:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+  
+  .comment {
+    font-size: 12px;
+    color: #6c757d;
+    margin-top: 3px;
+    font-style: italic;
+  }
+  
+  .detailed-status-view {
+    margin-top: 30px;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+  }
+  
+  .attendance-details-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    background-color: white;
+  }
+  
+  .attendance-details-table th, .attendance-details-table td {
+    border: 1px solid #dee2e6;
+    padding: 8px;
+    text-align: center;
+  }
+  
+  .attendance-details-table th {
+    background-color: #f8f9fa;
+    position: sticky;
+    top: 0;
+    box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1);
+  }
+  
+  .participant-name {
+    font-weight: bold;
+    text-align: left;
+    position: sticky;
+    left: 0;
+    background-color: white;
+    box-shadow: 2px 0 2px -1px rgba(0,0,0,0.1);
+  }
+  
+  .attendance-status-cell {
+    position: relative;
+  }
+  
+  .attendance-status-cell .status-yes {
+    color: #28a745;
+    font-weight: bold;
+    font-size: 18px;
+  }
+  
+  .attendance-status-cell .status-maybe {
+    color: #ffc107;
+    font-weight: bold;
+    font-size: 18px;
+  }
+  
+  .attendance-status-cell .status-no {
+    color: #dc3545;
+    font-weight: bold;
+    font-size: 18px;
+  }
+  
+  .attendance-status-cell .status-none {
+    color: #adb5bd;
+  }
+  
+  .attendance-status-cell .comment-icon {
+    font-size: 12px;
+    margin-left: 3px;
+    cursor: help;
+  }
+  
+  .date-comment-field {
+    margin-top: 10px;
+  }
+  
+  .date-comment-input {
+    font-size: 14px;
+  }
+  
+  .existing-participant-form {
+    margin-top: 40px;
+    border-top: 1px dashed #dee2e6;
+    padding-top: 30px;
+  }
+  
+  .select-participant-form {
+    margin-bottom: 20px;
+  }
+  
+  .update-response-form {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    border-left: 3px solid #6c757d;
+  }
+  
+  .badge {
+    display: inline-block;
+    padding: 0.25em 0.4em;
+    font-size: 75%;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+  }
+  
+  .badge-success {
+    color: #fff;
+    background-color: #28a745;
+  }
+  
+  .mt-2 {
+    margin-top: 0.5rem;
+  }
+  
+  @media (max-width: 768px) {
+    .date-options-table, .attendance-details-table {
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    
+    .detailed-status-view {
+      padding: 10px;
+    }
+    
+    .count-cell {
+      width: 60px;
+    }
   }
   
   /* 持ち物セクション */
@@ -713,7 +1208,7 @@
   }
   
   .participants-payment {
-    margin-top: 20px;
+    margin-top: 20px.
   }
   
   .payment-list {
@@ -738,20 +1233,20 @@
   
   .payment-item .paid-amount {
     display: block;
-    margin-bottom: 5px;
+    margin-bottom: 5px.
   }
   
   .payment-item .balance {
     display: block;
-    font-weight: bold;
+    font-weight: bold.
   }
   
   .balance.positive {
-    color: #28a745;
+    color: #28a745.
   }
   
   .balance.negative {
-    color: #dc3545;
+    color: #dc3545.
   }
   
   /* 共通スタイル */
@@ -766,53 +1261,53 @@
     font-size: 1rem;
     line-height: 1.5;
     border-radius: 0.25rem;
-    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out.
   }
   
   .btn-primary {
     color: #fff;
     background-color: #4a6eb5;
-    border-color: #4a6eb5;
+    border-color: #4a6eb5.
   }
   
   .btn-secondary {
     color: #fff;
     background-color: #6c757d;
-    border-color: #6c757d;
+    border-color: #6c757d.
   }
   
   .btn-success {
     color: #fff;
     background-color: #28a745;
-    border-color: #28a745;
+    border-color: #28a745.
   }
   
   .btn-danger {
     color: #fff;
     background-color: #dc3545;
-    border-color: #dc3545;
+    border-color: #dc3545.
   }
   
   .btn-outline {
     color: #6c757d;
     background-color: transparent;
-    border-color: #6c757d;
+    border-color: #6c757d.
   }
   
   .btn-sm {
     padding: 0.25rem 0.5rem;
     font-size: 0.875rem;
     line-height: 1.5;
-    border-radius: 0.2rem;
+    border-radius: 0.2rem.
   }
   
   .form-group {
-    margin-bottom: 1rem;
+    margin-bottom: 1rem.
   }
   
   .form-group label {
     display: block;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.5rem.
   }
   
   .form-control {
@@ -826,7 +1321,7 @@
     background-clip: padding-box;
     border: 1px solid #ced4da;
     border-radius: 0.25rem;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out.
   }
   
   .form-control:focus {
@@ -834,20 +1329,20 @@
     background-color: #fff;
     border-color: #8bb8f4;
     outline: 0;
-    box-shadow: 0 0 0 0.2rem rgba(74, 110, 181, 0.25);
+    box-shadow: 0 0 0 0.2rem rgba(74, 110, 181, 0.25).
   }
   
   .action-buttons {
-    margin-top: 20px;
+    margin-top: 20px.
   }
   
   @media (max-width: 768px) {
     .form-row {
-      flex-direction: column;
+      flex-direction: column.
     }
     
     .event-tabs {
-      overflow-x: auto;
+      overflow-x: auto.
     }
   }
 </style>
@@ -880,4 +1375,24 @@
     // コピー成功メッセージ（オプション）
     alert("URLがコピーされました！");
   }
+  
+  // ツールチップの動作を改善するJavaScript
+  document.addEventListener('DOMContentLoaded', function() {
+    var tooltipContainers = document.querySelectorAll('.tooltip-container');
+    
+    tooltipContainers.forEach(function(container) {
+      var trigger = container.querySelector('.tooltip-trigger');
+      var content = container.querySelector('.tooltip-content');
+      
+      if (trigger && content) {
+        trigger.addEventListener('mouseenter', function() {
+          content.style.display = 'block';
+        });
+        
+        trigger.addEventListener('mouseleave', function() {
+          content.style.display = 'none';
+        });
+      }
+    });
+  });
 </script>
