@@ -62,8 +62,39 @@ class EventsController < ApplicationController
   end
 
   def update
+    # 日程確定処理の特別なハンドリング
+    if params[:event][:confirmed_date].present?
+      # 日付文字列または日付オブジェクトを適切に処理
+      if params[:event][:confirmed_date].is_a?(String) && !params[:event][:confirmed_date].empty?
+        begin
+          # 文字列が日付のみの場合、時刻を追加
+          parsed_date = Date.parse(params[:event][:confirmed_date])
+          params[:event][:confirmed_date] = parsed_date.to_datetime.change(hour: 12) # デフォルトで12:00に設定
+        rescue ArgumentError => e
+          # 日付パースに失敗した場合
+          Rails.logger.error("日程確定エラー: #{e.message}")
+          return redirect_to event_path(@event), alert: '日付形式が不正です'
+        end
+      end
+      
+      # 日程確定時にイベントのステータスを更新
+      params[:event][:status] = '開催日決定' unless params[:event][:status].present?
+    end
+    
     if @event.update(event_params)
-      redirect_to event_path(@event), notice: 'イベント情報が更新されました。'
+      # 正常に更新された場合
+      message = if params[:event][:confirmed_date].nil? && @event.confirmed_date_previously_changed?
+                  # 確定解除の場合
+                  '日程確定が解除されました。'
+                elsif params[:event][:confirmed_date].present? && @event.confirmed_date_previously_changed?
+                  # 新しく確定した場合
+                  '開催日時が確定されました！'
+                else
+                  # その他の更新
+                  'イベント情報が更新されました。'
+                end
+                
+      redirect_to event_path(@event), notice: message
     else
       render :edit
     end

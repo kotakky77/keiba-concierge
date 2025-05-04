@@ -7,7 +7,12 @@ Rails.application.routes.draw do
   resources :events do
     # イベントに関連する他のリソース
     resources :date_options, only: [:create, :destroy]
-    resources :participants, only: [:create]
+    resources :participants, only: [:create] do
+      # 参加者の出欠回答更新用のルート
+      post 'update_attendance', on: :collection
+      # 参加者の出欠情報取得用のルート
+      get ':participant_id/attendances', to: 'participants#attendances', on: :collection
+    end
     resources :items, only: [:create, :update, :destroy]
     resources :expenses, only: [:create, :update, :destroy]
   end
