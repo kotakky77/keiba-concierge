@@ -21,12 +21,6 @@ class EventsController < ApplicationController
   end
 
   def show
-    # URLハッシュでアクセスされた場合の処理
-    @event = Event.find_by(url_hash: params[:url_hash]) if params[:url_hash].present?
-    
-    # イベントが見つからない場合はリダイレクト
-    redirect_to root_path, alert: 'イベントが見つかりませんでした。' and return unless @event
-
     @date_options = @event.date_options.order(:date)
     @participants = @event.participants
     @items = @event.items
@@ -108,7 +102,16 @@ class EventsController < ApplicationController
   private
 
   def set_event
-    @event = Event.find(params[:id])
+    # URLハッシュでアクセスされた場合はurl_hashからイベントを検索
+    if params[:url_hash].present?
+      @event = Event.find_by(url_hash: params[:url_hash])
+    else
+      # 通常のID指定の場合
+      @event = Event.find(params[:id])
+    end
+    
+    # イベントが見つからない場合はリダイレクト
+    redirect_to root_path, alert: 'イベントが見つかりませんでした。' unless @event
   rescue ActiveRecord::RecordNotFound
     redirect_to root_path, alert: 'イベントが見つかりませんでした。'
   end
