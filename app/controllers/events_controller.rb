@@ -1,5 +1,5 @@
 class EventsController < ApplicationController
-  before_action :set_event, only: [:show, :edit, :update]
+  before_action :set_event, only: [:show, :edit, :update, :destroy]
 
   def index
     @events = Event.order(created_at: :desc)
@@ -67,6 +67,11 @@ class EventsController < ApplicationController
     else
       render :edit
     end
+  end
+
+  def destroy
+    @event.destroy
+    redirect_to events_path(show_all: true), notice: 'イベントが削除されました。'
   end
 
   private
