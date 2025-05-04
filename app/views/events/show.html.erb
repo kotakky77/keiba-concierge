@@ -208,10 +208,6 @@
                   <%= button_to '日程を確定', event_path(@event), method: :patch, 
                       params: { event: { confirmed_date: date_option.date } }, 
                       class: 'btn btn-sm btn-success' %>
-                  <%= button_to '削除', event_date_option_path(@event, date_option), 
-                      method: :delete, 
-                      class: 'btn btn-sm btn-danger', 
-                      data: { confirm: '本当に削除しますか？この候補日の出欠情報も削除されます' } %>
                 </td>
               <% end %>
             </tr>
