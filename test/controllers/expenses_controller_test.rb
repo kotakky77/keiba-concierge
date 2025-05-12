@@ -1,18 +1,18 @@
 require "test_helper"
 
 class ExpensesControllerTest < ActionDispatch::IntegrationTest
-  test "should get create" do
-    get expenses_create_url
-    assert_response :success
+  test "should post create" do
+    post event_expenses_path(events(:one)), params: { expense: { name: "Test Expense", amount: 1000 } }
+    assert_response :redirect
   end
 
-  test "should get update" do
-    get expenses_update_url
-    assert_response :success
+  test "should patch update" do
+    patch event_expense_path(events(:one), expenses(:one)), params: { expense: { amount: 2000 } }
+    assert_response :redirect
   end
 
-  test "should get destroy" do
-    get expenses_destroy_url
-    assert_response :success
+  test "should delete destroy" do
+    delete event_expense_path(events(:one), expenses(:one))
+    assert_response :redirect
   end
 end
