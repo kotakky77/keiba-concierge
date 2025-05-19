@@ -1,13 +1,13 @@
 require "test_helper"
 
 class AttendancesControllerTest < ActionDispatch::IntegrationTest
-  test "should get create" do
-    get attendances_create_url
-    assert_response :success
+  test "should post create" do
+    post attendances_path, params: { attendance: { date_option_id: date_options(:one).id, participant_id: participants(:one).id, status: "attending" } }
+    assert_response :redirect
   end
 
-  test "should get update" do
-    get attendances_update_url
-    assert_response :success
+  test "should patch update" do
+    patch attendance_path(attendances(:one)), params: { attendance: { status: "not_attending" } }
+    assert_response :redirect
   end
 end
